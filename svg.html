@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>SVG Editor</title>
+	</head>
+	<link rel="stylesheet" href="svg.css">
+	<body>
+		<dialog id="init-attr">
+			<form class="doc" method="dialog">
+				<div class="head">
+					<h3>Initial Attributes</h3>
+				</div>
+				<div class="body"></div>
+				<div class="foot"><button type="submit" formmethod="dialog">Done</button></div>
+			</form>
+		</dialog>
+		<div class="loc"></div>
+		<div class="state"></div>
+		<nav>
+			<ul id="options">
+				<li>
+					<span style="display:flex;flex-direction:row;justify-content:space-around;align-items:center">
+						<label for="prims" style="color:white">Primitives:</label>
+						<select name="prims" id="prims" onchange="onSelPrim()">
+							<option value="neutral" default selected>SELECT A PRIMITIVE</option>
+							<option value="line">Line</option>
+							<option value="rect">Rect</option>
+							<option value="circle">Circle</option>
+							<option value="ellipse">Ellipse</option>
+							<option value="polygon">Polygon</option>
+							<option value="polyline">Polyline</option>
+							<option value="text">Text</option>
+							<option value="path">Path</option>
+						</select>
+						<label for="disable-modal" title="Allows displaying of a dialog to set default properties">enable dialog<input type="checkbox" name="disable-modal" id="disable-modal" checked></label>
+					</span>
+				</li>
+				<li class="attributes">
+					<h4>SVG ATTRIBUTES</h4>
+					<ul class="svg-attr" style="display:flex;flex-direction:column;justify-content:space-around;"></ul>
+				</li>
+				<li class="attributes">
+					<h4></h4>
+					<ul class="attr" style="display:flex;flex-direction:column;justify-content:space-around;"></ul>
+				</li>
+			</ul>
+		</nav>
+		<script src="colour.js"></script>
+		<script src="wikipedia-colors.js"></script>
+		<script src="svg0.js"></script>
+		<script src="svg.js">
+		</script>
+	</body>
+</html>

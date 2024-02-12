@@ -1,0 +1,69 @@
+
+html, body { height: 100vh; /*margin: 0; padding: 0;*/ }
+svg#canvas { border: 1px solid #00000000; }
+svg#canvas:hover { border-color: black; }
+svg#canvas[data-action="insert"]:hover {cursor: crosshair;}
+svg#canvas[data-action="insert"] > * { pointer-events: none; }
+svg#canvas > g#gl > * { pointer-events: none; }
+svg .ds:hover {
+	stroke-width: 6px;
+}
+svg #rcs:hover {
+	stroke-width: 2px;
+	cursor: crosshair;
+}
+div.loc {
+	position: fixed;
+	left: 15px;
+	bottom: 10px;
+	color: #000000;
+	opacity: .5;
+	font-family: monospace;
+	font-size: 1.5em;
+	pointer-events: none;
+}
+div.state {
+	position: fixed;
+	left: 30px;
+	top: 10px;
+	color: #000000;
+	opacity: .5;
+	font-family: monospace;
+	font-size: 1.5em;
+	pointer-events: none;
+}
+nav {
+	background:#212121;
+	border-right:1px solid #e5e5e5;
+	display: flex;
+	flex-direction: column;
+	/*padding: 5px;*/
+	position:fixed;
+	top:0;
+	bottom:0;
+	height:100vh;
+	left:0;
+	width:1px;
+	overflow:hidden;
+	-webkit-transition:width .05s linear;
+	transition:width .05s linear;
+	-webkit-transform:translateZ(0) scale(1,1);
+	transform: translateZ(0) scale(1,1);
+	z-index:1000;
+}
+nav > * { color: gray; }
+nav:hover, nav.open {
+	width:fit-content;
+	overflow-x:visible;
+	overflow-y:scroll;
+	scrollbar-width: 0px;
+	scrollbar-width: none;
+}
+.nav-btn {
+	border: none;
+}
+ul, li, ol {
+	list-style-type: none;
+	margin: 0;
+	padding: 0;
+}
