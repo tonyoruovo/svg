@@ -279,16 +279,15 @@ function pTrF(s){
  * @property {DOMPoint & TransformablePoint} c the central point of the rectangle.
  */
 /**
- * @summary **l**ongest**d**iagonal
- * @description Gets the longest diagonal from the given rectangular structure and returns it. If both are the same
- * length, then the P(`nw`, `se`) diagonal is returned. No matter what is returned, the left-most points are the
- * 1st element of the returned tuple.
- * @param {RectStruct} r the rectangle whose diagonal is to be taken.
- * @returns {[DOMPoint & TransformablePoint, DOMPoint & TransformablePoint]} the endpoints of the longest diagonal of
- * the argument. The atual value-pair returned is one either P(`nw`, `se`) or P(`sw`, `ne`).
+ * @summary **norm**alise**L**i**n**e
+ * @description Re-arranges the endpoints of a given line so that the leftmost point (in a 2D cartesian plane)
+ * is comes first in the 2-length array and, consequentially, the rightmost point comes last.
+ * @param {[DOMPoint, DOMPoint]} l a 2-length tuple representing the endpoints of the line.
+ * @returns {[DOMPoint, DOMPoint]} a 2-length tuple representing the endpoints of a line such that the first element is
+ * the leftmost point and the last element is the rightmost point.
  */
-function ld(r) {
-  return getD([r.nw, r.se]) >= getD([r.sw, r.ne]) ? [r.nw, r.se] : [r.sw, r.ne];
+function normLn(l) {
+  return l[0].x <= l[1].x ? l : [l[1], l[0]];
 }
 /**
  * @summary **getD**istance
@@ -301,13 +300,25 @@ function getD(l) {
   return Math.sqrt(f(l[1].x - l[0].x) + f(l[1].y - l[0].y));
 }
 /**
+ * @summary **l**ongest**d**iagonal
+ * @description Gets the longest diagonal from the given rectangular structure and returns it. If both are the same
+ * length, then the line segment (`nw`<-->`se`) diagonal is returned such that the leftmost point is the first element.
+ * No matter what is returned, the left-most point will be the 1st element of the returned tuple.
+ * @param {RectStruct} r the rectangle whose diagonal is to be taken.
+ * @returns {[DOMPoint & TransformablePoint, DOMPoint & TransformablePoint]} the endpoints of the longest diagonal of
+ * the argument.
+ */
+function ld(r) {
+  return getD([r.nw, r.se]) >= getD([r.sw, r.ne]) ? normLn([r.nw, r.se]) : normLn([r.sw, r.ne]);
+}
+/**
  * @summary **w**rap**D**OM**P**oint.
  * @description Wraps the given `DOMPoint` with a `TransformablePoint` and returns the result.
  * @param {DOMPoint} p the value to be wrapped
  * @returns {DOMPoint & TransformablePoint} the transformed `DOMPoint`.
  */
 function wDP(p) {
-  p.tr = m => DOMPoint.fromPoint({...p}).matrixTransform(m);
+  p.tr = m => DOMPoint.fromPoint({x: p.x, y: p.y, z: p.z, w: p.w}).matrixTransform(m);
   return p;
 }
 /**
@@ -326,6 +337,22 @@ function frDR(r) {
   };
 }
 /**
+ * @summary **imm**utable**Tr**ansformation
+ * @description Transforms the given rect without altering any of it's properties.
+ * @param {RectStruct} r any `RectStruct`
+ * @param {DOMMatrix} t the transform to be applied
+ * @returns {RectStruct} the transformed rect. Note that the returned values donot implement {@linkcode Transformable} interface (functor).
+ */
+function immTr(r, t) {
+  return {
+    nw: r.nw.tr(t),
+    ne: r.ne.tr(t),
+    se: r.se.tr(t),
+    sw: r.sw.tr(t),
+    c: r.c.tr(t)
+  }
+}
+/**
  * @summary **cr**eate**B**ounding**B**ox
  * @description Creates a bounding box around a given rect that will be transformed by the second argument.\
  * \
@@ -338,22 +365,15 @@ function frDR(r) {
  * argument `r`.
  */
 function crBB(r, t) {
-  const rt = frDR(r);
-  const tr = {
-    nw: rt.nw.matrixTransform(t),
-    ne: rt.ne.matrixTransform(t),
-    se: rt.se.matrixTransform(t),
-    sw: rt.sw.matrixTransform(t),
-    c: rt.c.matrixTransform(t),
-  };//transformed rect
+  const tr = immTr(frDR(r), t)
   const d = ld(tr);
-  const rv = {
+  const height = (Math.max(tr.c.y, d[0].y) - Math.min(tr.c.y, d[0].y)) * 2;
+  return DOMRect.fromRect({
     x: d[0].x,
-    y: d[0].y,
+    y: d[0].y < tr.c.y ? d[0].y : d[0].y - height,
     width: (tr.c.x - d[0].x) * 2,
-    height: (Math.max(tr.c.y, d[0].y) - Math.min(tr.c.y, d[0].y)) * 2
-  };//return value
-  return DOMRect.fromRect(rv);
+    height
+  });
 }
 
 const transform = {
@@ -5848,7 +5868,7 @@ const circle = {
       }),
       c.getCTM()
     );
-    console.log(bb);
+    // console.log(bb);
     const br = document.querySelector("g#selection-shapes > #rect-sel"); //boundingRect
     const cd = document.querySelector("g#selection-shapes > #rcs"); //centreDot
     const cdp = DOMPoint.fromPoint({ x: cx, y: cy }).matrixTransform(
