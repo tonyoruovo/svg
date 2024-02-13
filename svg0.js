@@ -280,14 +280,38 @@ function pTrF(s){
  */
 /**
  * @summary **norm**alise**L**i**n**e
+ * @description Re-arranges the endpoints of a given line so that the leftmost (or top-most) point (in a 2D cartesian plane)
+ * comes first in the 2-length array.
+ * @param {[DOMPoint, DOMPoint]} l a 2-length tuple representing the endpoints of the line.
+ * @param {boolean} [t=true] a `boolean` value, whereby if `!!t === true` then {@linkplain normLnHorz horizontal normalisation}
+ * will be carried out else {@linkplain normLnVert vertical normalisation} is carried out.
+ * @returns {[DOMPoint, DOMPoint]} a 2-length tuple representing the endpoints of a line such that the first element is
+ * the left-most/top-most point.
+ */
+function normLn(l, t = true) {
+  return t ? normLnHorz(l) : normLnVert(l);
+}
+/**
+ * @summary **norm**alise**L**i**n**e**Hor**i**z**ontal
  * @description Re-arranges the endpoints of a given line so that the leftmost point (in a 2D cartesian plane)
- * is comes first in the 2-length array and, consequentially, the rightmost point comes last.
+ * comes first in the 2-length array and, consequentially, the rightmost point comes last.
  * @param {[DOMPoint, DOMPoint]} l a 2-length tuple representing the endpoints of the line.
  * @returns {[DOMPoint, DOMPoint]} a 2-length tuple representing the endpoints of a line such that the first element is
  * the leftmost point and the last element is the rightmost point.
  */
-function normLn(l) {
+function normLnHorz(l) {
   return l[0].x <= l[1].x ? l : [l[1], l[0]];
+}
+/**
+ * @summary **norm**alise**L**i**n**e**Vert**ical
+ * @description Re-arranges the endpoints of a given line so that the top-most point (in a 2D cartesian plane)
+ * comes first in the 2-length array and, consequentially, the bottom-most point comes last.
+ * @param {[DOMPoint, DOMPoint]} l a 2-length tuple representing the endpoints of the line.
+ * @returns {[DOMPoint, DOMPoint]} a 2-length tuple representing the endpoints of a line such that the first element is
+ * the top-most point and the last element is the bottom-most point.
+ */
+function normLnVert(l) {
+  return l[0].y <= l[1].y ? l : [l[1], l[0]];
 }
 /**
  * @summary **getD**istance
@@ -296,7 +320,7 @@ function normLn(l) {
  * @returns {number} the distance between the specified endpoints
  */
 function getD(l) {
-  const f = a => a*a
+  const f = a => a*a;//square function
   return Math.sqrt(f(l[1].x - l[0].x) + f(l[1].y - l[0].y));
 }
 /**
@@ -365,15 +389,70 @@ function immTr(r, t) {
  * argument `r`.
  */
 function crBB(r, t) {
-  const tr = immTr(frDR(r), t)
-  const d = ld(tr);
-  const height = (Math.max(tr.c.y, d[0].y) - Math.min(tr.c.y, d[0].y)) * 2;
+  const q = frDR(r);//quad
+  const tr = immTr(q, t);
+  const cv = document.getElementById("canvas");
+  cv.appendChild(circ(tr.nw, "nw", "yellow"));
+  cv.appendChild(circ(tr.ne, "ne", "magenta"));
+  cv.appendChild(circ(tr.se, "se", "cyan"));
+  cv.appendChild(circ(tr.sw, "sw", "purple"));
+  cv.appendChild(circ(tr.c, "c", "gray"));
+  cv.appendChild(lin([tr.nw, tr.se], "tl-br", "blue"));
+  cv.appendChild(lin([tr.sw, tr.ne], "bl-tr", "green"));
+  const hd = ld(tr);//horizontally
+  const vd = normLn(hd, false);//vertically
+  const height = (Math.max(tr.c.y, hd[0].y) - Math.min(tr.c.y, hd[0].y)) * 2;
+  const [x, y] = [hd[0].x, 0];
   return DOMRect.fromRect({
-    x: d[0].x,
-    y: d[0].y < tr.c.y ? d[0].y : d[0].y - height,
-    width: (tr.c.x - d[0].x) * 2,
+    x,
+    y: hd[0].y < tr.c.y ? hd[0].y : hd[0].y - height,
+    width: (tr.c.x - hd[0].x) * 2,
     height
   });
+}
+/**
+ * @summary **circ**le
+ * @description Constructs an SVG `<circle>` element with no outline but filled with the given CSS color. If the element
+ * already exists in the DOM, then the given `id` is used to retrieve it.
+ * @param {DOMPoint} cp the centre point of this circle
+ * @param {string} id the HTML `id` of the `<circle>` element
+ * @param {string} cl the CSS color used as the fill
+ * @returns {SVGCircleElement} a pre-configured `<circle>` element
+ */
+function circ(cp, id, cl = "red") {
+  const c = document.getElementById(id) ?? document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  c.setAttribute("id", id);
+  c.setAttribute("stroke", "none");
+  c.setAttribute("fill", cl);
+  c.setAttribute("r", "5");
+  c.setAttribute("cx", cp.x);
+  c.setAttribute("cy", cp.y);
+  try {c.remove();} catch (e) {}
+  return c;
+  
+}
+/**
+ * @summary **lin**e
+ * @description Constructs an SVG `<line>` element with no fill but outlined with the given CSS color. If the element
+ * already exists in the DOM, then the given `id` is used to retrieve it.
+ * @param {[DOMPoint, DOMPoint]} l the endpoints of this line
+ * @param {string} id the HTML `id` of the `<line>` element
+ * @param {string} cl the CSS color used as the stroke
+ * @returns {SVGCircleElement} a pre-configured `<line>` element
+ */
+function lin(l, id, cl = "red") {
+  const ln = document.getElementById(id) ?? document.createElementNS("http://www.w3.org/2000/svg", "line");
+  ln.setAttribute("id", id);
+  ln.setAttribute("stroke", cl);
+  ln.setAttribute("stroke-width", "0.5");
+  ln.setAttribute("fill", "none");
+  ln.setAttribute("x1", l[0].x);
+  ln.setAttribute("y1", l[0].y);
+  ln.setAttribute("x2", l[1].x);
+  ln.setAttribute("y2", l[1].y);
+  try {ln.remove();} catch (e) {}
+  return ln;
+  
 }
 
 const transform = {
@@ -7087,6 +7166,8 @@ const shape = {
 // whereby the key is the name of the css property (e.g color) rendered as the first cell of the table's row
 // and the value(s) is/are the a textfield, list, drop down or table.
 // streamline all attributes. e.g make 'matrix' as a direct attribute of 'transform'
+// The values of the transform attribute should be infinite. This means that rotate should be able to be added infinitely
+// The unit types of the value of an attribute should be accounted for
 // bulk move
 // bulk resize (left, right, top down)
 // default controls for every known attr
@@ -7095,3 +7176,7 @@ const shape = {
 // masking
 // filter
 // Animation
+// Be able to convert a line to a linearGradient
+// Be able to convert a circle to a radialGradient
+// Be able to convert a path to a marker
+// Be able to convert an image to a pattern
