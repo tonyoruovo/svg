@@ -294,7 +294,10 @@ function normLn(l, t = true) {
 /**
  * @summary **norm**alise**L**i**n**e**Hor**i**z**ontal
  * @description Re-arranges the endpoints of a given line so that the leftmost point (in a 2D cartesian plane)
- * comes first in the 2-length array and, consequentially, the rightmost point comes last.
+ * comes first in the 2-length array and, consequentially, the rightmost point comes last.\
+ * \
+ * Note that *left-most point* here refers to the `DOMPoint` (index in the input array) whose `x` property
+ * is closest to `0`.
  * @param {[DOMPoint, DOMPoint]} l a 2-length tuple representing the endpoints of the line.
  * @returns {[DOMPoint, DOMPoint]} a 2-length tuple representing the endpoints of a line such that the first element is
  * the leftmost point and the last element is the rightmost point.
@@ -305,7 +308,10 @@ function normLnHorz(l) {
 /**
  * @summary **norm**alise**L**i**n**e**Vert**ical
  * @description Re-arranges the endpoints of a given line so that the top-most point (in a 2D cartesian plane)
- * comes first in the 2-length array and, consequentially, the bottom-most point comes last.
+ * comes first in the 2-length array and, consequentially, the bottom-most point comes last.\
+ * \
+ * Note that *top-most* here refers to the `DOMPoint` (index in the input array) whose `y` property
+ * is closest to `0`.
  * @param {[DOMPoint, DOMPoint]} l a 2-length tuple representing the endpoints of the line.
  * @returns {[DOMPoint, DOMPoint]} a 2-length tuple representing the endpoints of a line such that the first element is
  * the top-most point and the last element is the bottom-most point.
@@ -400,7 +406,23 @@ function crBB(r, t) {
   cv.appendChild(lin([tr.nw, tr.se], "tl-br", "blue"));
   cv.appendChild(lin([tr.sw, tr.ne], "bl-tr", "green"));
   const hd = ld(tr);//horizontally
-  const vd = normLn(hd, false);//vertically
+  // const vd = normLn(hd, false);//vertically
+
+  // Calculations for rotation
+  // const d = getD(hd);
+  // const rl = getD(hd) / 2; //radius length aka hypotenuse
+  // let ang1 = Math.atan2(tr.c.y, tr.c.x);
+  // let opp = Math.sin(ang1) * rl;//half height of the bound rect
+  // let adj = Math.cos(ang1)* rl;//half width of the bound rect
+  // return DOMRect.fromRect({
+  //   x: tr.c.x - adj,
+  //   y: tr.c.y - opp,
+  //   width: adj * 2,
+  //   height: opp * 2
+  // });
+
+  
+
   const height = (Math.max(tr.c.y, hd[0].y) - Math.min(tr.c.y, hd[0].y)) * 2;
   const [x, y] = [hd[0].x, 0];
   return DOMRect.fromRect({
