@@ -6974,7 +6974,7 @@ const svg = {
         const txt = document.getElementById(id + "-viewbox-height");
         const vals = (canvas.getAttribute("viewBox") || "").split(" ");
         const val = txt.value.match(NUM_MATCH);
-        if (val) {
+        if (val) {sxsaxx
           vals[3] = val[0];
           canvas.setAttribute("viewBox", vals.join(" "));
         }
