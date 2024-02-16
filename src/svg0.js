@@ -206,18 +206,6 @@ function isDefTr(s) {
   }
 }
 /**
- * @summary **p**arse**t**ransform**a**ttribute
- * @description Parses the value of the transform attribute of an SVG or HTML element into a POJO.
- * @param {string} s the value of the `transform` attribute on an SVG element. Note that this also goes for other
- * types of the `transform` attribute such as the ones used for `gradientTransform`.
- * @returns {TransformAttrFunction[]}
- */
-function pta(s) {
-  const r = s.split(/(?<=\))\s+/g);//split results
-  if((!r) || r.length === 0) return [];
-  return r.map(x => pTrF(x));
-}
-/**
  * @typedef {Object} TransformGenericArgument a generic argument to a given {@linkcode TransformAttrFunction} whose name is not `matrix`.
  * It consists of a numerical value and a given unit.
  * @property {number} v the numerical value of this argument
@@ -255,6 +243,19 @@ function pTrF(s){
     u: (x.match(/(?:[A-Za-z]+|%)$/)??[""])[0]??"",
   }));
   return ({f,a});
+}
+/**
+ * @summary **p**arse**t**ransform**a**ttribute
+ * @description Parses the value of the transform attribute of an SVG or HTML element into a POJO.
+ * @param {string} [s=""] the value of the `transform` attribute on an SVG element. Note that this also goes for other
+ * types of the `transform` attribute such as the ones used for `gradientTransform`, `patternTransform` etc.
+ * @returns {TransformAttrFunction[]}
+ */
+function pta(s) {
+  s ??= "";
+  const r = s.split(/(?<=\))\s+/g);//split results
+  if((!r) || r.length === 0) return [];
+  return r.map(x => pTrF(x));
 }
 /**
  * An interface representing a shape that can apply a given `transform` to itself without changing (mutating)
@@ -342,6 +343,18 @@ function ld(r) {
   return getD([r.nw, r.se]) >= getD([r.sw, r.ne]) ? normLn([r.nw, r.se]) : normLn([r.sw, r.ne]);
 }
 /**
+ * @summary **s**hortest**d**iagonal
+ * @description Gets the shortest diagonal from the given rectangular structure and returns it. If both are the same
+ * length, then the line segment (`nw`<-->`se`) diagonal is returned such that the leftmost point is the first element.
+ * No matter what is returned, the left-most point will be the 1st element of the returned tuple.
+ * @param {RectStruct} r the rectangle whose diagonal is to be taken.
+ * @returns {[DOMPoint & TransformablePoint, DOMPoint & TransformablePoint]} the endpoints of the longest diagonal of
+ * the argument.
+ */
+function sd(r) {
+  return getD([r.nw, r.se]) <= getD([r.sw, r.ne]) ? normLn([r.nw, r.se]) : normLn([r.sw, r.ne]);
+}
+/**
  * @summary **w**rap**D**OM**P**oint.
  * @description Wraps the given `DOMPoint` with a `TransformablePoint` and returns the result.
  * @param {DOMPoint} p the value to be wrapped
@@ -383,6 +396,54 @@ function immTr(r, t) {
   }
 }
 /**
+ * @summary **g**et**N**orth**W**est
+ * @description Gets the north-western vertex of the given `RectStruct` argument. More technically, get the `DOMPoint` with the
+ * smallest `x` and smallest `y`.\
+ * \
+ * This may be neccessary because the vertex points of the given rect may have transformed, and the original points displaced.
+ * @param {RectStruct} r a `RectStruct` object
+ * @returns {DOMPoint} a value representing the north-western vertex
+ */
+function gNW(r) {
+  return DOMPoint.fromPoint({x: Math.min(r.nw.x, r.ne.x, r.se.x, r.sw.x), y: Math.min(r.nw.y, r.ne.y, r.se.y, r.sw.y)});
+}
+/**
+ * @summary **g**et**N**orth**E**ast
+ * @description Gets the north-eastern vertex of the given `RectStruct` argument. More technically, get the `DOMPoint` with the
+ * largest `x` and smallest `y`.\
+ * \
+ * This may be neccessary because the vertex points of the given rect may have transformed, and the original points displaced.
+ * @param {RectStruct} r a `RectStruct` object
+ * @returns {DOMPoint} a value representing the north-eastern vertex
+ */
+function gNE(r) {
+  return DOMPoint.fromPoint({x: Math.max(r.nw.x, r.ne.x, r.se.x, r.sw.x), y: Math.min(r.nw.y, r.ne.y, r.se.y, r.sw.y)});
+}
+/**
+ * @summary **g**et**S**outh**E**ast
+ * @description Gets the south-eastern vertex of the given `RectStruct` argument. More technically, get the `DOMPoint` with the
+ * largest `x` and largest `y`.\
+ * \
+ * This may be neccessary because the vertex points of the given rect may have transformed, and the original points displaced.
+ * @param {RectStruct} r a `RectStruct` object
+ * @returns {DOMPoint} a value representing the south-eastern vertex
+ */
+function gSE(r) {
+  return DOMPoint.fromPoint({x: Math.max(r.nw.x, r.ne.x, r.se.x, r.sw.x), y: Math.max(r.nw.y, r.ne.y, r.se.y, r.sw.y)});
+}
+/**
+ * @summary **g**et**S**outh**W**est
+ * @description Gets the south-western vertex of the given `RectStruct` argument. More technically, get the `DOMPoint` with the
+ * largest `x` and smallest `y`.\
+ * \
+ * This may be neccessary because the vertex points of the given rect may have transformed, and the original points displaced.
+ * @param {RectStruct} r a `RectStruct` object
+ * @returns {DOMPoint} a value representing the south-western vertex
+ */
+function gSW(r) {
+  return DOMPoint.fromPoint({x: Math.max(r.nw.x, r.ne.x, r.se.x, r.sw.x), y: Math.min(r.nw.y, r.ne.y, r.se.y, r.sw.y)});
+}
+/**
  * @summary **cr**eate**B**ounding**B**ox
  * @description Creates a bounding box around a given rect that will be transformed by the second argument.\
  * \
@@ -397,39 +458,21 @@ function immTr(r, t) {
 function crBB(r, t) {
   const q = frDR(r);//quad
   const tr = immTr(q, t);
-  const cv = document.getElementById("canvas");
-  cv.appendChild(circ(tr.nw, "nw", "yellow"));
-  cv.appendChild(circ(tr.ne, "ne", "magenta"));
-  cv.appendChild(circ(tr.se, "se", "cyan"));
-  cv.appendChild(circ(tr.sw, "sw", "purple"));
-  cv.appendChild(circ(tr.c, "c", "gray"));
-  cv.appendChild(lin([tr.nw, tr.se], "tl-br", "blue"));
-  cv.appendChild(lin([tr.sw, tr.ne], "bl-tr", "green"));
-  const hd = ld(tr);//horizontally
-  // const vd = normLn(hd, false);//vertically
+  // const cv = document.getElementById("canvas");
+  // cv.appendChild(circ(tr.nw, "nw", "yellow"));
+  // cv.appendChild(circ(tr.ne, "ne", "magenta"));
+  // cv.appendChild(circ(tr.se, "se", "cyan"));
+  // cv.appendChild(circ(tr.sw, "sw", "purple"));
+  // cv.appendChild(circ(tr.c, "c", "gray"));
+  // cv.appendChild(lin([tr.nw, tr.se], "tl-br", "blue"));
+  // cv.appendChild(lin([tr.sw, tr.ne], "bl-tr", "green"));
 
   // Calculations for rotation
-  // const d = getD(hd);
-  // const rl = getD(hd) / 2; //radius length aka hypotenuse
-  // let ang1 = Math.atan2(tr.c.y, tr.c.x);
-  // let opp = Math.sin(ang1) * rl;//half height of the bound rect
-  // let adj = Math.cos(ang1)* rl;//half width of the bound rect
-  // return DOMRect.fromRect({
-  //   x: tr.c.x - adj,
-  //   y: tr.c.y - opp,
-  //   width: adj * 2,
-  //   height: opp * 2
-  // });
-
-  
-
-  const height = (Math.max(tr.c.y, hd[0].y) - Math.min(tr.c.y, hd[0].y)) * 2;
-  const [x, y] = [hd[0].x, 0];
+  const dim = {width: getD([tr.nw, tr.ne]), height: getD([tr.nw, tr.sw])};
   return DOMRect.fromRect({
-    x,
-    y: hd[0].y < tr.c.y ? hd[0].y : hd[0].y - height,
-    width: (tr.c.x - hd[0].x) * 2,
-    height
+    x: tr.c.x - (dim.width / 2),
+    y: tr.c.y - (dim.height / 2),
+    ...dim
   });
 }
 /**
@@ -438,7 +481,7 @@ function crBB(r, t) {
  * already exists in the DOM, then the given `id` is used to retrieve it.
  * @param {DOMPoint} cp the centre point of this circle
  * @param {string} id the HTML `id` of the `<circle>` element
- * @param {string} cl the CSS color used as the fill
+ * @param {string} [cl="red"] the CSS color used as the fill
  * @returns {SVGCircleElement} a pre-configured `<circle>` element
  */
 function circ(cp, id, cl = "red") {
@@ -452,6 +495,72 @@ function circ(cp, id, cl = "red") {
   try {c.remove();} catch (e) {}
   return c;
   
+}
+/**
+ * @summary **t**e**xtC**on**tr**o**l**
+ * @description Creates 2 controls used for changing the attributes of an `SVGElement` whose id is given in the `id` argument.
+ * The first control is an `<input>` element with the 
+ * @param {Object} val The values to use for the text control
+ * @param {string} val.title the value of the `title` attribute of the `<input>` element.
+ * @param {string} val.def the initial value of the `<input>` element.
+ * @param {string} val.label the value of the `<label>` element that is to label the `<input>` element.
+ * @param {(e:Event, id: string) => void} val.onchange the function that is called inside the `oninput` of the `<input>` element.
+ * The first element is the `Event` object. The next is the id of the `SVGElement` to be changed
+ * @param {Object} unit the values to use for the `<select>` element.
+ * @param {string} unit.title the value of the `title` attribute of the `<select>` element.
+ * @param {string} [unit.def=""] the initial value of the `<select>` element.
+ * @param {string} unit.label the value of the `<label>` element that is to label the `<select>` element.
+ * @param {[[string, string]]} unit.values an array of values used for creating the `<option>` elements for the `<select>` element.
+ * Each index contains a 2-length tuple whereby the tuple's first index is the value `<option>` element's value and the next is it's
+ * display text.
+ * @param {(e:Event, id: string) => void} unit.onchange the function that is called inside the `onchange` of the `<input>` element.
+ * The first element is the `Event` object. The next is the id of the `SVGElement` to be changed
+ * @param {string} id the HTML id of the `SVGElement` which this control directly relates to
+ * @returns {HTMLLIElement} wraps all controls that were created in a `HTMLLIElement` (list item) and returns that list item.
+ */
+function txtCtrl(val, unit, id) {
+  const li = document.createElement('li');
+
+  const input = document.createElement('input');
+  
+  input.setAttribute('title', val.title);
+  input.setAttribute('value', val.def);
+  input.addEventListener('input', (e) => val.onchange(e, id));
+  const inputLabel = document.createElement('label');
+  inputLabel.textContent = val.label;
+  input.id = id + "-" + val.label;
+  inputLabel.htmlFor = input.id;
+  inputLabel.title = input.title;
+
+  const select = document.createElement('select');
+  select.setAttribute('title', unit.title);
+  unit.values.forEach(([value, text]) => {
+    const option = document.createElement('option');
+    option.setAttribute('value', value);
+    option.textContent = text;
+    select.appendChild(option);
+  });
+  select.value = unit.def || '';
+  select.addEventListener('change', (e) => unit.onchange(e, id));
+  const selectLabel = document.createElement('label');
+  selectLabel.textContent = unit.label;
+  select.id = id + "-" + val.label + "-" + unit.label;
+  selectLabel.htmlFor = select.id;
+  selectLabel.title = select.title;
+
+  const inputSpan = document.createElement('span');
+  const selectSpan = document.createElement('span');
+  
+  inputSpan.appendChild(inputLabel);
+  inputSpan.appendChild(input);
+  
+  selectSpan.appendChild(selectLabel);
+  selectSpan.appendChild(select);
+  
+  li.appendChild(inputSpan);
+  li.appendChild(selectSpan);
+  
+  return li;
 }
 /**
  * @summary **lin**e
@@ -5867,7 +5976,7 @@ const circle = {
     const start = dot.dataset.m
       .split("|")
       .reduce((p, c, i, a) => ({ x: Number(a[0]), y: Number(a[1]) }));
-    const cirStart = cir.dataset.c
+    const cirStart = dot.dataset.c
       .split("|")
       .reduce((p, c, i, a) => ({ x: Number(a[0]), y: Number(a[1]) }));
     const m = { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -5893,9 +6002,11 @@ const circle = {
 
     circle.ssg(c.id);
     crct.onmousedown = (e) => {
-      e.target.setAttribute("r", Number(e.target.getAttribute("r")) * 5);
+      /**@type {SVGCircleElement} */
+      const c = e.target;
+      c.setAttribute("r", Number(c.r.baseVal.value) * 5);
       const canvas = document.getElementById("canvas").getBoundingClientRect();
-      e.target.dataset.m =
+      c.dataset.m =
         e.clientX - canvas.left + "|" + (e.clientY - canvas.top);
       c.dataset.c = c.cx.baseVal.value + "|" + c.cy.baseVal.value;
       rct.style.display = "none";
@@ -5944,12 +6055,20 @@ const circle = {
   bb: (id) => {
     /**@type {SVGCircleElement} */
     const c = document.getElementById(id);
-    const r = Number(c.getAttribute("r"));
-    const o = DOMPoint.fromPoint({
-      x: Number(c.getAttribute("cx")) - r,
-      y: Number(c.getAttribute("cy")) - r,
-    }).matrixTransform(c.getCTM()); //origin
-    return new DOMRect(o.x, o.y, r * 2, r * 2);
+    const [cx, cy, cr] = [
+      c.cx.baseVal.value,
+      c.cy.baseVal.value,
+      c.r.baseVal.value
+    ];
+    return crBB(
+      DOMRect.fromRect({
+        x: cx - cr,
+        y: cy - cr,
+        width: cr * 2,
+        height: cr * 2
+      }),
+      c.getCTM()
+    );
   },
   /**@summary Show selection graphic @param {string} id */
   ssg: (id) => {
@@ -5960,15 +6079,7 @@ const circle = {
       c.cy.baseVal.value,
       c.r.baseVal.value
     ];
-    const bb = crBB(
-      DOMRect.fromRect({
-        x: cx - cr,
-        y: cy - cr,
-        width: cr * 2,
-        height: cr * 2
-      }),
-      c.getCTM()
-    );
+    const bb = circle.bb(id)
     // console.log(bb);
     const br = document.querySelector("g#selection-shapes > #rect-sel"); //boundingRect
     const cd = document.querySelector("g#selection-shapes > #rcs"); //centreDot
@@ -6000,7 +6111,14 @@ const circle = {
     cd.setAttribute("fill", br.getAttribute("stroke"));
     cd.setAttribute("cx", cdp.x);
     cd.setAttribute("cy", cdp.y);
-    cd.setAttribute("r", cr <= 6 ? cr / 6 : cr / 40);
+
+    const wk = new Worker("recalc-rad.js", {credentials: "same-origin"});
+    wk.postMessage(bb);
+    wk.onmessage = e => {
+      cd.setAttribute("r",  e.data);
+    }
+
+    cd.setAttribute("r",  6);
   },
   /**@summary **r**emove**u**ser**i**nterface */
   rui: () => {
@@ -6416,7 +6534,7 @@ const neutral = {
       for (let i = 0; i < shapes.length; i++) {
         /**@type {SVGGraphicsElement}*/
         const shape = shapes[i];
-        const bb = shape.getBBox();
+        const bb = primitives[shape.tagName].bb(shape.id);
         if (contains(rct.getBBox(), bb)) {
           if (rect.maxX < bb.x + bb.width) rect.maxX = bb.x + bb.width;
           if (rect.maxY < bb.y + bb.height) rect.maxY = bb.y + bb.height;
@@ -6458,70 +6576,55 @@ const neutral = {
 const svg = {
   height: {
     desc: "The vertical length of the SVG element",
-    v: (id) => document.getElementById(id).getAttribute("height") || "",
-    f: (id, e) => {
-      const val = document
-        .getElementById(id + "-height")
-        .value.match(NUM_MATCH);
-      if (val) document.getElementById(id).setAttribute("height", val[0]);
+    v: (id) => {
+      const atb = document.getElementById(id).getAttribute("height") || "";
+      return {
+        val: Number((atb.match(NUM_MATCH) || ["^^^"])[0]),
+        unit: (atb.match(/(?:%|[A-Za-z]+)$/g) || [""])[0],
+        toStr() {
+          return this.val + this.unit;
+        }
+      } 
     },
     l: (id, attr) => {
       /**@type {HTMLUListElement} */
       attr ??= document.querySelector("li.attributes .svg-attr");
-
-      let li = document.createElement("li");
-      li.title = svg.height.desc;
-      li.setAttribute("class", "attribute");
-
-      let lb = document.createElement("label");
-      lb.title = li.title;
-      lb.htmlFor = id + "-height";
-      lb.textContent = "height";
-      li.appendChild(lb);
-
-      let ctrl = document.createElement("input");
-      ctrl.type = "number";
-      ctrl.title = lb.title;
-      ctrl.name = lb.htmlFor;
-      ctrl.id = lb.htmlFor;
-      ctrl.disabled = !document.getElementById(id).hasAttribute("height");
-      const v = svg.height.v(id);
-      ctrl.value =
-        v.length > 0
-          ? v
-          : document.getElementById(id).getBoundingClientRect().height;
-      ctrl.oninput = (e) => svg.height.f(id, e);
-      li.appendChild(ctrl);
-
-      lb = document.createElement("label");
-      lb.title = "remove \u201dheight\u201c attr";
-      lb.htmlFor = id + "-height-vis";
-      lb.textContent = "disable";
-      li.appendChild(lb);
-
-      ctrl = document.createElement("input");
-      ctrl.type = "checkbox";
-      ctrl.title = lb.title;
-      ctrl.name = lb.htmlFor;
-      ctrl.id = lb.htmlFor;
-      ctrl.checked = !document.getElementById(id).hasAttribute("height");
-      ctrl.onclick = (e) => {
-        const svgEl = document.getElementById(id);
-        if (e.target.checked) {
-          svgEl.dataset.height = svgEl.getAttribute("height");
-          svgEl.removeAttribute("height");
-          document
-            .getElementById(id + "-height")
-            .setAttribute("disabled", "true");
-        } else {
-          svgEl.setAttribute(
-            "height",
-            svgEl.dataset.height ?? (svgEl.dataset.height = bb.height)
-          );
-          document.getElementById(id + "-height").removeAttribute("disabled");
+      const atb = svg.height.v(id);
+      const li = txtCtrl({
+        def: Number.isFinite(atb.val) ? atb.val : document.getElementById(id).getBoundingClientRect().height,
+        label: "height",
+        title: svg.height.desc,
+        onchange: (e, id) => {
+          const val = Number((e.target
+            .value.match(NUM_MATCH)||[""])[0]);
+          if (Number.isFinite(val)) {atb.val = val; document.getElementById(id).setAttribute("height", atb.toStr());}
         }
-      };
-      li.appendChild(ctrl);
+      }, {
+        def: Number.isFinite(atb.val) ? atb.unit : "remove",
+        label: "unit",
+        title: "Choose a unit for this length",
+        values: [["", "No unit"], ['px', 'Pixels'],
+        ['em', 'Ems'],
+        ['rem', 'Root ems'],
+        ['vw', 'Viewport width'],
+        ['vh', 'Viewport height'],
+        ['vmin', 'Minimum viewport'],
+        ['vmax', 'Maximum viewport'],
+        ['cm', 'Centimeters'],
+        ['mm', 'Millimeters'],
+        ['in', 'Inches'],
+        ['pt', 'Points'],
+        ['fr', 'Fraction'],
+        ['pc', 'Picas'],
+        ['%', 'Percentage'],["Q", "Quarter millimetres"],
+        ["remove", "Remove unit"]
+        ],
+        onchange: (e, id) => {
+          const unit = (e.target.value.match(/(?:%|[A-Za-z]+)$/)||[""])[0];
+          if(unit !== "remove") {atb.unit = unit; document.getElementById(id).setAttribute("height", atb.toStr());}
+          else document.getElementById(id).removeAttribute("height");
+        }
+      }, id)
 
       attr.appendChild(li);
     },
@@ -6982,194 +7085,165 @@ const svg = {
   },
   width: {
     desc: "The horizontal length of the SVG element",
-    v: (id) => document.getElementById(id).getAttribute("width") || "",
-    f: (id, e) => {
-      const val = document.getElementById(id + "-width").value.match(NUM_MATCH);
-      if (val) document.getElementById(id).setAttribute("width", val[0]);
+    v: (id) => {
+      const atb = document.getElementById(id).getAttribute("width") || "";
+      return {
+        val: Number((atb.match(NUM_MATCH) || ["^^^"])[0]),
+        unit: (atb.match(/(?:%|[A-Za-z]+)$/g) || [""])[0],
+        toStr() {
+          return this.val + this.unit;
+        }
+      } 
     },
     l: (id, attr) => {
       /**@type {HTMLUListElement} */
       attr ??= document.querySelector("li.attributes .svg-attr");
-
-      let li = document.createElement("li");
-      li.title = svg.width.desc;
-      li.setAttribute("class", "attribute");
-
-      let lb = document.createElement("label");
-      lb.title = li.title;
-      lb.htmlFor = id + "-width";
-      lb.textContent = "width";
-      li.appendChild(lb);
-
-      let ctrl = document.createElement("input");
-      ctrl.type = "number";
-      ctrl.title = lb.title;
-      ctrl.name = lb.htmlFor;
-      ctrl.id = lb.htmlFor;
-      ctrl.disabled = !document.getElementById(id).hasAttribute("width");
-      const v = svg.width.v(id);
-      ctrl.value =
-        v.length > 0
-          ? v
-          : document.getElementById(id).getBoundingClientRect().width;
-      ctrl.oninput = (e) => svg.width.f(id);
-      li.appendChild(ctrl);
-
-      lb = document.createElement("label");
-      lb.title = "remove \u201dwidth\u201c attr";
-      lb.htmlFor = id + "-width-vis";
-      lb.textContent = "disable";
-      li.appendChild(lb);
-
-      ctrl = document.createElement("input");
-      ctrl.type = "checkbox";
-      ctrl.title = lb.title;
-      ctrl.name = lb.htmlFor;
-      ctrl.id = lb.htmlFor;
-      ctrl.checked = !document.getElementById(id).hasAttribute("width");
-      ctrl.onclick = (e) => {
-        const canvas = document.getElementById(id);
-        if (e.target.checked) {
-          canvas.dataset.width = canvas.getAttribute("width");
-          canvas.removeAttribute("width");
-          document
-            .getElementById(id + "-width")
-            .setAttribute("disabled", "true");
-        } else {
-          canvas.setAttribute(
-            "width",
-            canvas.dataset.width ?? (canvas.dataset.width = bb.width)
-          );
-          document.getElementById(id + "-width").removeAttribute("disabled");
+      const atb = svg.width.v(id);
+      const li = txtCtrl({
+        def: Number.isFinite(atb.val) ? atb.val : document.getElementById(id).getBoundingClientRect().width,
+        label: "width",
+        title: svg.width.desc,
+        onchange: (e, id) => {
+          const val = Number((e.target
+            .value.match(NUM_MATCH)||[""])[0]);
+          if (Number.isFinite(val)) {atb.val = val; document.getElementById(id).setAttribute("width", atb.toStr());}
         }
-      };
-      li.appendChild(ctrl);
+      }, {
+        def: Number.isFinite(atb.val) ? atb.unit : "remove",
+        label: "unit",
+        title: "Choose a unit for this length",
+        values: [["", "No unit"], ['px', 'Pixels'],
+        ['em', 'Ems'],
+        ['rem', 'Root ems'],
+        ['vw', 'Viewport width'],
+        ['vh', 'Viewport height'],
+        ['vmin', 'Minimum viewport'],
+        ['vmax', 'Maximum viewport'],
+        ['cm', 'Centimeters'],
+        ['mm', 'Millimeters'],
+        ['in', 'Inches'],
+        ['pt', 'Points'],
+        ['fr', 'Fraction'],
+        ['pc', 'Picas'],
+        ['%', 'Percentage'],["Q", "Quarter millimetres"],
+        ["remove", "Remove unit"]
+        ],
+        onchange: (e, id) => {
+          const unit = (e.target.value.match(/(?:%|[A-Za-z]+)$/)||[""])[0];
+          if(unit !== "remove") {atb.unit = unit; document.getElementById(id).setAttribute("width", atb.toStr());}
+          else document.getElementById(id).removeAttribute("width");
+        }
+      }, id)
 
       attr.appendChild(li);
     },
   },
   x: {
     desc: "the x coordinate of the upper left corner of its viewport",
-    v: (id) => document.getElementById(id).getAttribute("x") || "",
-    f: (id, e) => {
-      const val = document.getElementById(id + "-x").value.match(NUM_MATCH);
-      if (val) document.getElementById(id).setAttribute("x", val[0]);
+    v: (id) => {
+      const atb = document.getElementById(id).getAttribute("x") || "";
+      return {
+        val: Number((atb.match(NUM_MATCH) || ["^^^"])[0]),
+        unit: (atb.match(/(?:%|[A-Za-z]+)$/g) || [""])[0],
+        toStr() {
+          return this.val + this.unit;
+        }
+      } 
     },
     l: (id, attr) => {
       /**@type {HTMLUListElement} */
       attr ??= document.querySelector("li.attributes .svg-attr");
-
-      let li = document.createElement("li");
-      li.title = svg.x.desc;
-      li.setAttribute("class", "attribute");
-
-      let lb = document.createElement("label");
-      lb.title = li.title;
-      lb.htmlFor = id + "-x";
-      lb.textContent = "x";
-      li.appendChild(lb);
-
-      let ctrl = document.createElement("input");
-      ctrl.type = "number";
-      ctrl.title = lb.title;
-      ctrl.name = lb.htmlFor;
-      ctrl.id = lb.htmlFor;
-      ctrl.disabled = !document.getElementById(id).hasAttribute("x");
-      const v = svg.x.v(id);
-      ctrl.value = v.length > 0 ? v : "0";
-      ctrl.oninput = (e) => svg.x.f(id);
-      li.appendChild(ctrl);
-
-      lb = document.createElement("label");
-      lb.title = "remove \u201dx\u201c attr";
-      lb.htmlFor = id + "-x-vis";
-      lb.textContent = "disable";
-      li.appendChild(lb);
-
-      ctrl = document.createElement("input");
-      ctrl.type = "checkbox";
-      ctrl.title = lb.title;
-      ctrl.name = lb.htmlFor;
-      ctrl.id = lb.htmlFor;
-      ctrl.checked = !document.getElementById(id).hasAttribute("x");
-      ctrl.onclick = (e) => {
-        const canvas = document.getElementById(id);
-        if (e.target.checked) {
-          canvas.dataset.x = canvas.getAttribute("x");
-          canvas.removeAttribute("x");
-          document.getElementById(id + "-x").setAttribute("disabled", "true");
-        } else {
-          canvas.setAttribute(
-            "x",
-            canvas.dataset.x ?? (canvas.dataset.x = bb.x)
-          );
-          document.getElementById(id + "-x").removeAttribute("disabled");
+      const atb = svg.x.v(id);
+      const li = txtCtrl({
+        def: Number.isFinite(atb.val) ? atb.val : '0',
+        label: "x",
+        title: svg.x.desc,
+        onchange: (e, id) => {
+          const val = Number((e.target
+            .value.match(NUM_MATCH)||[""])[0]);
+          if (Number.isFinite(val)) {atb.val = val; document.getElementById(id).setAttribute("x", atb.toStr());}
         }
-      };
-      li.appendChild(ctrl);
+      }, {
+        def: Number.isFinite(atb.val) ? atb.unit : "remove",
+        label: "unit",
+        title: "Choose a unit for this value",
+        values: [["", "No unit"], ['px', 'Pixels'],
+        ['em', 'Ems'],
+        ['rem', 'Root ems'],
+        ['vw', 'Viewport width'],
+        ['vh', 'Viewport height'],
+        ['vmin', 'Minimum viewport'],
+        ['vmax', 'Maximum viewport'],
+        ['cm', 'Centimeters'],
+        ['mm', 'Millimeters'],
+        ['in', 'Inches'],
+        ['pt', 'Points'],
+        ['fr', 'Fraction'],
+        ['pc', 'Picas'],
+        ['%', 'Percentage'],["Q", "Quarter millimetres"],
+        ["remove", "Remove unit"]
+        ],
+        onchange: (e, id) => {
+          const unit = (e.target.value.match(/(?:%|[A-Za-z]+)$/)||[""])[0];
+          if(unit !== "remove") {atb.unit = unit; document.getElementById(id).setAttribute("x", atb.toStr());}
+          else document.getElementById(id).removeAttribute("x");
+        }
+      }, id)
 
       attr.appendChild(li);
     },
   },
   y: {
     desc: "the y coordinate of the upper left corner of its viewport",
-    v: (id) => document.getElementById(id).getAttribute("y") || "",
-    f: (id, e) => {
-      const val = document.getElementById(id + "-y").value.match(NUM_MATCH);
-      if (val) document.getElementById(id).setAttribute("y", val[0]);
+    v: (id) => {
+      const atb = document.getElementById(id).getAttribute("y") || "";
+      return {
+        val: Number((atb.match(NUM_MATCH) || ["^^^"])[0]),
+        unit: (atb.match(/(?:%|[A-Za-z]+)$/g) || [""])[0],
+        toStr() {
+          return this.val + this.unit;
+        }
+      } 
     },
     l: (id, attr) => {
       /**@type {HTMLUListElement} */
       attr ??= document.querySelector("li.attributes .svg-attr");
-
-      let li = document.createElement("li");
-      li.title = svg.y.desc;
-      li.setAttribute("class", "attribute");
-
-      let lb = document.createElement("label");
-      lb.title = li.title;
-      lb.htmlFor = id + "-y";
-      lb.textContent = "y";
-      li.appendChild(lb);
-
-      let ctrl = document.createElement("input");
-      ctrl.type = "number";
-      ctrl.title = lb.title;
-      ctrl.name = lb.htmlFor;
-      ctrl.id = lb.htmlFor;
-      ctrl.disabled = !document.getElementById(id).hasAttribute("y");
-      const v = svg.y.v(id);
-      ctrl.value = v.length > 0 ? v : "0";
-      ctrl.oninput = (e) => svg.y.f(id);
-      li.appendChild(ctrl);
-
-      lb = document.createElement("label");
-      lb.title = "remove \u201dy\u201c attr";
-      lb.htmlFor = id + "-y-vis";
-      lb.textContent = "disable";
-      li.appendChild(lb);
-
-      ctrl = document.createElement("input");
-      ctrl.type = "checkbox";
-      ctrl.title = lb.title;
-      ctrl.name = lb.htmlFor;
-      ctrl.id = lb.htmlFor;
-      ctrl.checked = !document.getElementById(id).hasAttribute("y");
-      ctrl.onclick = (e) => {
-        const canvas = document.getElementById(id);
-        if (e.target.checked) {
-          canvas.dataset.y = canvas.getAttribute("y");
-          canvas.removeAttribute("y");
-          document.getElementById(id + "-y").setAttribute("disabled", "true");
-        } else {
-          canvas.setAttribute(
-            "y",
-            canvas.dataset.y ?? (canvas.dataset.y = bb.y)
-          );
-          document.getElementById(id + "-y").removeAttribute("disabled");
+      const atb = svg.y.v(id);
+      const li = txtCtrl({
+        def: Number.isFinite(atb.val) ? atb.val : '0',
+        label: "y",
+        title: svg.y.desc,
+        onchange: (e, id) => {
+          const val = Number((e.target
+            .value.match(NUM_MATCH)||[""])[0]);
+          if (Number.isFinite(val)) {atb.val = val; document.getElementById(id).setAttribute("y", atb.toStr());}
         }
-      };
-      li.appendChild(ctrl);
+      }, {
+        def: Number.isFinite(atb.val) ? atb.unit : "remove",
+        label: "unit",
+        title: "Choose a unit for this value",
+        values: [["", "No unit"], ['px', 'Pixels'],
+        ['em', 'Ems'],
+        ['rem', 'Root ems'],
+        ['vw', 'Viewport width'],
+        ['vh', 'Viewport height'],
+        ['vmin', 'Minimum viewport'],
+        ['vmax', 'Maximum viewport'],
+        ['cm', 'Centimeters'],
+        ['mm', 'Millimeters'],
+        ['in', 'Inches'],
+        ['pt', 'Points'],
+        ['fr', 'Fraction'],
+        ['pc', 'Picas'],
+        ['%', 'Percentage'],["Q", "Quarter millimetres"],
+        ["remove", "Remove unit"]
+        ],
+        onchange: (e, id) => {
+          const unit = (e.target.value.match(/(?:%|[A-Za-z]+)$/)||[""])[0];
+          if(unit !== "remove") {atb.unit = unit; document.getElementById(id).setAttribute("y", atb.toStr());}
+          else document.getElementById(id).removeAttribute("y");
+        }
+      }, id)
 
       attr.appendChild(li);
     },
