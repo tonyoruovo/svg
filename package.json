@@ -1,0 +1,19 @@
+{
+  "name": "svg",
+  "version": "0.0.1",
+  "description": "An SVG editor",
+  "main": "svg.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "lite-server -c ./config.js"
+  },
+  "keywords": [
+    "svg",
+    "editor"
+  ],
+  "author": "Oruovo Anthony",
+  "license": "ISC",
+  "devDependencies": {
+    "lite-server": "^2.6.1"
+  }
+}
