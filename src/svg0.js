@@ -585,6 +585,24 @@ function lin(l, id, cl = "red") {
   return ln;
   
 }
+/**
+ * @description Gets the bounding box of a shape after skew transformation
+ * @param {DOMRect} r the bounding box of the shape before transformation
+ * @param {DOMMatrix} ctm the skew transformation data
+ * @returns {DOMRect} the bounding box of the shape after transformation
+ */
+function circumscribedDOMRect(r, ctm) {
+  const {x, y, width, height} = r;
+  // const {a, b, c, d, e, f} = ctm;
+  // return new DOMRect(x + a * width, y + b * height, width * Math.sqrt(a * a + b * b), height * Math.sqrt(c * c + d * d));const {x, y, width, height} = r;
+  const {a, b, c, d, e, f} = ctm;
+  // TODO: Implement skew transformation on the bounding box of the shape
+  const skewX = a * width + c * height;
+  const skewY = b * width + d * height;
+  const newWidth = Math.sqrt(skewX * skewX + skewY * skewY);
+  const newHeight = Math.sqrt(width * width + height * height);
+  return new DOMRect(x, y, newWidth, newHeight);
+}
 
 const transform = {
   matrix: {
