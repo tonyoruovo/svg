@@ -50,7 +50,7 @@ function nPt(pt, dst) {
  * @returns {DOMRect}
  */
 function nBx(b, dst, xB = 0, yB = 0) {
-  b.x = b.left = b.x - dst.left;
+  b.x = b.left = b.x - dst.left - xB;
   b.y = b.top = b.y - dst.top - yB;
   return b;
 }
@@ -258,6 +258,242 @@ function pta(s) {
   return r.map(x => pTrF(x));
 }
 /**
+ * A 2-length tuple representing the endpoints of a line such that the first element is one end and the last is another.
+ * @typedef {[DOMPoint, DOMPoint]} Line
+ */
+/**
+ * Gets the slope of the given line.
+ * @param {Line} l the endpoints of the line
+ * @returns {number} the slope of the given line or `NaN` if the line is parallel to the y-axis.
+ */
+function getSlope(l) {
+  try {
+    return (l2[1].y - l2[0].y)/(l[1].x - l[0].x);
+  } catch (e) {
+    return Number.NaN;
+  }
+}
+/**
+ * Gets the y-intercept of the given line.
+ * @param {Line} l the endpoints of the line
+ * @returns {number} the y-intercept of the given line or `NaN` if the line is vertical.
+ */
+function getYIntercept(l){
+  try {
+    return ((l[1].x*l2[0].y)-(l[0].x*l2[1].y)) / (l[1].x - l[0].x);
+  } catch (e) {
+    return Number.NaN;
+  }
+}
+/**
+ * @summary **isVert**ical
+ * @description Checks if the given line is vertical and returns `true` if it is, otherwise returns `false`.
+ * @param {Line} l the `Line` to be checked
+ * @returns {boolean} `true` if the argument is a vertical line else returns `false`
+ */
+function isVert(l) {
+  return (!Number.isFinite(getSlope(l)));
+}
+/**
+ * @summary **isHor**i**z**ontal
+ * @description Checks if the given line is horizontal and returns `true` if it is, otherwise returns `false`.
+ * @param {Line} l the `Line` to be checked
+ * @returns {boolean} `true` if the argument is a horizontal line else returns `false`
+ */
+function isHorz(l) {
+  return getSlope(l) === 0;
+}
+/**
+ * @summary **isPar**alle**l**
+ * @description Checks if both line arguments are parallel to each other. This does not check for verticality.
+ * If both are vertical then this method will return `false`, hence the caller is responsible for handling vertical special cases.
+ * @param {Line} l1 the first line to be compared
+ * @param {Line} l2 the second line to be compared
+ * @returns {boolean} `true` if both lines are parallel or else `false`.
+ */
+function isParl(l1, l2) {
+  return getSlope(l1) === getSlope(l2);
+}
+/**
+ * @summary **isPerp**endicular
+ * @description Checks if both line arguments are perpendicular to each other. This does not check for verticality.
+ * If both are vertical then this method will return `false`, hence the caller is responsible for handling vertical special cases.
+ * @param {Line} l1 One of 2 lines to be compared
+ * @param {Line} l2 One of 2 lines to be compared
+ * @returns {boolean} `true` if the first line argument is perpendicular to the second line argument. Otherwise, returns `false`.
+ */
+function isPerp(l1, l2) {
+  return (getSlope(l1) * getSlope(l2)) === -1;
+}
+/**
+ * @description Reflects the given point across the given line and returns the 
+ * @param {DOMPoint} p the point to be reflected
+ * @param {Line} l the line perpendicular to the line formed by points before and after the reflection
+ * @returns {DOMPoint} the position of the `p` argument after the reflection across `line`
+ */
+function reflect(p, l) {
+  let dx = l[1].x - l[0].x;
+  let dy = l[1].y - l[0].y;
+  let a = (dx * dx - dy * dy) / (dx * dx + dy * dy);
+  let b = 2 * dx * dy / (dx * dx + dy * dy);
+  return DOMPoint.fromPoint({x: (a * (p.x - l[0].x) + b * (p.y - l[0].y) + l[0].x),
+  y: (b * (p.x - l[0].x) - a * (p.y - l[0].y) + l[0].y)});
+}
+/**
+ * @summary **t**o**Par**allel
+ * @description Computes the `Line` parallel to the given `Line` argument `l` which passes through the given `DOMPoint` `p`.
+ * @param {Line} l the given line
+ * @param {DOMPoint} p the point through the parallel line passes.
+ * @returns {Line} the line parallel to the argument `l`.
+ */
+function tPar(l, p) {
+  let [wx, wy] = [(l[1].x - l[0].x) / 2, (l[1].y - l[0].y) / 2];
+  return [DOMPoint.fromPoint({x:p.x - wx,y:p.y - wy}), DOMPoint.fromPoint({x:p.x+wx,y:p.y+wy})];
+}
+/**
+ * @summary **t**o**Perp**endicular
+ * @description Computes and returns the line perpendicular (of which one of the endpoints is the given point) to the given line.
+ * @param {Line} l the line whose perpendicular is to be computed
+ * @param {DOMPoint} p one of the endpoints to the returned perpendicular line
+ * @returns {Line} the perpendicular to the argument. This line bisects l at 1/2Pi (90 degrees) and is 2x the distance from `p` to
+ * the point of bisection of `l`.
+ */
+function tPerp(l, p) {
+  return [p, reflect(p, l)]
+}
+/**
+ * @summary **midP**oin**t**
+ * @description Gets the mid poinjt of `l`.
+ * @param {Line} l a line
+ * @returns {DOMPoint} the midpoint of `l`
+ */
+function midPt(l) {
+  return DOMPoint.fromPoint({x:(l[1].x - l[0].x) / 2,y:(l[1].y - l[0].y) / 2});
+}
+/**
+ * A 3-length tuple representing the points of a triangle.
+ * @typedef {[DOMPoint, DOMPoint, DOMPoint]} Triangle
+ */
+/**
+ * A POJO (data object) that contains the points of a right-angled triangle.
+ * @typedef {Object} PythagoreanTriple
+ * @property {DOMPoint} x the point that lies either at the left or right of the point at the right angle i.e the other endpoint at the 'horizontal side'
+ * of the triangle that is not the point at the right angle.
+ * @property {DOMPoint} y the point that lies either at the top or bottom of the point at the right angle i.e the other endpoint at the 'vertical side'
+ * of the triangle that is not the point at the right angle.
+ * @property {DOMPoint} z the point exactly at the right angle.
+ * @property {() => number} hyp a helper method to get the length of the hypotenuse.
+ * @property {() => number} w a helper method to get the length of the horizontal side. This is the width of the triangle.
+ * @property {() => number} h a helper method to get the length of the vertical side. This is the height of the triangle.
+ * @property {() => number} va a helper method to get the angle that the hypotenuse makes with the vertical (height) side.
+ * @property {() => number} ha a helper method to get the angle that the hypotenuse makes with the horizonal (base) side.
+ */
+/**
+ * @summary **py**thagorean**P**oin**t**
+ * @description Gets a right-angled triangle relative to the origin of the user coordinate system. The hypotenuse of the returned data is the
+ * distance of the argument from the origin `(0, 0)` of the user coordinate system. The `z` property is the point that lies on the x-axis,
+ * the `x` property is the origin and the `y` property is the argument `p`.\
+ * \
+ * This is the pythagorean triple that the argument makes with the origin of the user coordinate system.
+ * @param {DOMPoint} p a `DOMPoint` on the user coordinate system.
+ * @returns {PythagoreanTriple} a right-angled triangle with extra data for the location of this point on the user coordinate system.
+ */
+function pyPt(p) {
+  return {
+    x: DOMPoint.fromPoint({x: 0, y: 0}),//origin
+    y: p,
+    z: DOMPoint.fromPoint({x:p.x,y:0}),
+    hyp: () => getD([this.x, this.y]),
+    w: () => getD([this.x, this.z]),
+    h: () => getD([this.z, this.y]),
+    ha: () => Math.asin(this.h() / this.hyp()),
+    va: () => Math.atan2(this.w(), this.h())
+  };
+}
+/**
+ * @summary **fr**om**Hyp**otenuse
+ * @description Constructs a right-angled triangle (represented by a {@linkcode PythagoreanTriple}) from the given endpoints relative to the
+ * user coordinate system. The triangle is constructed such that {@linkcode PythagoreanTriple.z} is the `DOMPoint` with the smallest `y`.
+ * @param {Line} l the endpoints of the hypotenuse of the returned `PythagoreanTriple`.
+ * @param {boolean} [r=true] option to specify which side of the given line the {@linkplain PythagoreanTriple.z the point at the right angle}
+ * should lie. Set to `true` (default) if the right angle point should always have the smallest `y` property 
+ * @returns {PythagoreanTriple} the right-angled triangle whose hypotenuse is the argument.
+ */
+function frHyp(l, r = true) {
+  l = reArrEP(l);
+  if(r) {
+    if(l[0].y <= l[1].y){//l is top-left<->bottom-right
+      return {
+        x: DOMPoint.fromPoint(l[0]),
+        y: DOMPoint.fromPoint(l[1]),
+        z: DOMPoint.fromPoint({x:l[1].x,y:l[0].y}),
+        hyp: () => getD([this.x, this.y]),
+        w: () => getD([this.x, this.z]),
+        h: () => getD([this.z, this.y]),
+        ha: () => Math.asin(this.h() / this.hyp()),
+        va: () => Math.atan2(this.w(), this.h())
+      };
+    } else return {
+      x: DOMPoint.fromPoint(l[1]),
+      y: DOMPoint.fromPoint(l[0]),
+      z: DOMPoint.fromPoint({x:l[0].x,y:l[1].y}),
+      hyp: () => getD([this.x, this.y]),
+      w: () => getD([this.x, this.z]),
+      h: () => getD([this.z, this.y]),
+      ha: () => Math.asin(this.h() / this.hyp()),
+      va: () => Math.atan2(this.w(), this.h())
+    }
+  } else {
+    if(l[0].y <= l[1].y){
+      return {
+        x: DOMPoint.fromPoint(l[1]),
+        y: DOMPoint.fromPoint(l[0]),
+        z: DOMPoint.fromPoint({x: l[0].x, y: l[1].y}),
+        hyp: () => getD([this.x, this.y]),
+        w: () => getD([this.x, this.z]),
+        h: () => getD([this.z, this.y]),
+        ha: () => Math.asin(this.h() / this.hyp()),
+        va: () => Math.atan2(this.w(), this.h())
+      }
+    } else return {
+      x: DOMPoint.fromPoint(l[0]),
+      y: DOMPoint.fromPoint(l[1]),
+      z: DOMPoint.fromPoint({x: l[1].x, y: l[0].y}),
+      hyp: () => getD([this.x, this.y]),
+      w: () => getD([this.x, this.z]),
+      h: () => getD([this.z, this.y]),
+      ha: () => Math.asin(this.h() / this.hyp()),
+      va: () => Math.atan2(this.w(), this.h())
+    };
+  }
+}
+/**
+ * @summary **sortP**oin**t**s
+ * @description Sorts and orders the points in the given array and returns it. Note that this is a destructive operation.
+ * @param {DOMPoint[]} p an array of points
+ * @param {'x'|'y'|'z'} [by='x'] specifies that the ordering should be either by the `x` (default) or `y` property. 
+ * @param {boolean} [a=true] a boolean value. If `true` (default) then the points are returned in their ascending
+ * order (from min to max) else the alternative is the case.
+ * @returns {DOMPoint[]} the list of points after re-ordering.
+ */
+function sortPt(p, by = 'x', a = true) {
+  return a ? p.sort((p1, p2) => p1[by] - p2[by]) : p.sort((p1, p2) => p2[by] - p1[by]);
+}
+/**
+ * @summary **sortL**i**n**e
+ * @param {Object} args
+ * @param {Line[]} args.l an array of 2-length arrays with each index consisting of a `DOMPoint`.
+ * @param {'x'|'y'|'z'} [args.by='x'] specifies the point property by which the ordering is done
+ * @param {'min'|'max'} [args.m='min'] specifies whether the ordering is done by the minimum (default)
+ * or maximum value for the property given by the argument `by`.
+ * @param {boolean} [args.a=true] a boolean value. If `true` (default) then the lines are returned in their ascending
+ * order (from min to max) else the alternative is the case.
+ * @returns {Line[]} the list of lines after re-ordering.
+ */
+function sortLn({l, by = 'x', m = "min", a = true}) {
+  return a ? l.sort((l1, l2) => Math[m](l1[0][by], l1[1][by]) - Math[m](l2[0][by], l2[1][by])) : l.sort((l1, l2) => Math[m](l2[0][by], l2[1][by]) - Math[m](l1[0][by], l1[1][by]));
+}
+/**
  * An interface representing a shape that can apply a given `transform` to itself without changing (mutating)
  * it's original values.
  * @callback Transformable
@@ -270,7 +506,7 @@ function pta(s) {
  * @property {Transformable} tr Returns a `DOMPoint` that has been transformed with a specified transformation.
  */
 /**
- * **Rect**angular**Struct**ure. An object that contains only the points of the vertices of a rectangle (such as a bounding box)
+ * **Rect**angular**Struct**ure. An object that contains only the points of the vertices of a rectangle (such as a `DOMRect`)
  * and the centre point. Each of these points can be transformed separately wiout mutating the whole rectangle.
  * @typedef {Object} RectStruct
  * @property {DOMPoint & TransformablePoint} nw the north-west (top-left) point of the rectangle.
@@ -280,18 +516,16 @@ function pta(s) {
  * @property {DOMPoint & TransformablePoint} c the central point of the rectangle.
  */
 /**
- * @summary **norm**alise**L**i**n**e
- * @description Re-arranges the endpoints of a given line so that the leftmost (or top-most) point (in a 2D cartesian plane)
+ * @summary **reArr**ange**E**nd**P**oints
+ * @description Re-arranges (sorts) the endpoints of a given line so that the leftmost (or top-most) point (in a 2D cartesian plane)
  * comes first in the 2-length array.
- * @param {[DOMPoint, DOMPoint]} l a 2-length tuple representing the endpoints of the line.
- * @param {boolean} [t=true] a `boolean` value, whereby if `!!t === true` then {@linkplain normLnHorz horizontal normalisation}
- * will be carried out else {@linkplain normLnVert vertical normalisation} is carried out.
- * @returns {[DOMPoint, DOMPoint]} a 2-length tuple representing the endpoints of a line such that the first element is
+ * @param {Line} l a 2-length tuple representing the endpoints of the line.
+ * @param {boolean} [t=true] a `boolean` value, whereby if `!!t === true` then horizontal sorting (sorts by x-axis: ascending)
+ * will be carried out else vertical sorting (sorts by y-axis: ascending) is carried out. The default is `true`.
+ * @returns {Line} a 2-length tuple representing the endpoints of a line such that the first element is
  * the left-most/top-most point.
  */
-function normLn(l, t = true) {
-  return t ? normLnHorz(l) : normLnVert(l);
-}
+function reArrEP(l, t = true) {
 /**
  * @summary **norm**alise**L**i**n**e**Hor**i**z**ontal
  * @description Re-arranges the endpoints of a given line so that the leftmost point (in a 2D cartesian plane)
@@ -299,8 +533,8 @@ function normLn(l, t = true) {
  * \
  * Note that *left-most point* here refers to the `DOMPoint` (index in the input array) whose `x` property
  * is closest to `0`.
- * @param {[DOMPoint, DOMPoint]} l a 2-length tuple representing the endpoints of the line.
- * @returns {[DOMPoint, DOMPoint]} a 2-length tuple representing the endpoints of a line such that the first element is
+ * @param {Line} l a 2-length tuple representing the endpoints of the line.
+ * @returns {Line} a 2-length tuple representing the endpoints of a line such that the first element is
  * the leftmost point and the last element is the rightmost point.
  */
 function normLnHorz(l) {
@@ -313,17 +547,19 @@ function normLnHorz(l) {
  * \
  * Note that *top-most* here refers to the `DOMPoint` (index in the input array) whose `y` property
  * is closest to `0`.
- * @param {[DOMPoint, DOMPoint]} l a 2-length tuple representing the endpoints of the line.
- * @returns {[DOMPoint, DOMPoint]} a 2-length tuple representing the endpoints of a line such that the first element is
+ * @param {Line} l a 2-length tuple representing the endpoints of the line.
+ * @returns {Line} a 2-length tuple representing the endpoints of a line such that the first element is
  * the top-most point and the last element is the bottom-most point.
  */
 function normLnVert(l) {
   return l[0].y <= l[1].y ? l : [l[1], l[0]];
 }
+  return t ? normLnHorz(l) : normLnVert(l);
+}
 /**
  * @summary **getD**istance
  * @description Gets the distance between the given points
- * @param {[DOMPoint, DOMPoint]} l the endpoints of the line whose distance is to be calculated.
+ * @param {Line} l the endpoints of the line whose distance is to be calculated.
  * @returns {number} the distance between the specified endpoints
  */
 function getD(l) {
@@ -331,28 +567,48 @@ function getD(l) {
   return Math.sqrt(f(l[1].x - l[0].x) + f(l[1].y - l[0].y));
 }
 /**
- * @summary **l**ongest**d**iagonal
- * @description Gets the longest diagonal from the given rectangular structure and returns it. If both are the same
- * length, then the line segment (`nw`<-->`se`) diagonal is returned such that the leftmost point is the first element.
+ * @summary **diag**onal
+ * @description Gets a diagonal of the `RectStruct` argument depending on whether the longer (or shorter) one is specified.
  * No matter what is returned, the left-most point will be the 1st element of the returned tuple.
- * @param {RectStruct} r the rectangle whose diagonal is to be taken.
- * @returns {[DOMPoint & TransformablePoint, DOMPoint & TransformablePoint]} the endpoints of the longest diagonal of
- * the argument.
+ * \
+ * In a `RectStruct`, there are 2 diagonals. They are specified as follows:
+ * ```js
+ * const element = document.querySelector("ellipse");
+ * const vertices = frDR(element.getBoundingClientRect());//May sometimes also be getBBox()
+ * const diagonal_1 = [vertices.nw, vertices.se];//first diagonal
+ * const diagonal_2 = [vertices.sw, vertices.ne];//second diagonal
+ * ```
+ * @param {RectStruct} r a `RectStruct` object
+ * @param {boolean} l `true` if the longer diagonal should be returned or `false` if otherwise. If bothe diagonal are the same length,
+ * then the `[nw, se]` one is returned regardless of this value.
+ * @returns {Line} a 2-length tuple representing the endpoints of the diagonal.
  */
-function ld(r) {
-  return getD([r.nw, r.se]) >= getD([r.sw, r.ne]) ? normLn([r.nw, r.se]) : normLn([r.sw, r.ne]);
-}
-/**
- * @summary **s**hortest**d**iagonal
- * @description Gets the shortest diagonal from the given rectangular structure and returns it. If both are the same
- * length, then the line segment (`nw`<-->`se`) diagonal is returned such that the leftmost point is the first element.
- * No matter what is returned, the left-most point will be the 1st element of the returned tuple.
- * @param {RectStruct} r the rectangle whose diagonal is to be taken.
- * @returns {[DOMPoint & TransformablePoint, DOMPoint & TransformablePoint]} the endpoints of the longest diagonal of
- * the argument.
- */
-function sd(r) {
-  return getD([r.nw, r.se]) <= getD([r.sw, r.ne]) ? normLn([r.nw, r.se]) : normLn([r.sw, r.ne]);
+function diag(r, l = true) {
+  /**
+   * @summary **l**ongest**d**iagonal
+   * @description Gets the longest diagonal from the given rectangular structure and returns it. If both are the same
+   * length, then the line segment (`nw`<-->`se`) diagonal is returned such that the leftmost point is the first element.
+   * No matter what is returned, the left-most point will be the 1st element of the returned tuple.
+   * @param {RectStruct} r the rectangle whose diagonal is to be taken.
+   * @returns {[DOMPoint & TransformablePoint, DOMPoint & TransformablePoint]} the endpoints of the longest diagonal of
+   * the argument.
+   */
+  function ld(r) {
+    return getD([r.nw, r.se]) >= getD([r.sw, r.ne]) ? reArrEP([r.nw, r.se]) : reArrEP([r.sw, r.ne]);
+  }
+  /**
+   * @summary **s**hortest**d**iagonal
+   * @description Gets the shortest diagonal from the given rectangular structure and returns it. If both are the same
+   * length, then the line segment (`nw`<-->`se`) diagonal is returned such that the leftmost point is the first element.
+   * No matter what is returned, the left-most point will be the 1st element of the returned tuple.
+   * @param {RectStruct} r the rectangle whose diagonal is to be taken.
+   * @returns {[DOMPoint & TransformablePoint, DOMPoint & TransformablePoint]} the endpoints of the longest diagonal of
+   * the argument.
+   */
+  function sd(r) {
+    return getD([r.nw, r.se]) <= getD([r.sw, r.ne]) ? reArrEP([r.nw, r.se]) : reArrEP([r.sw, r.ne]);
+  }
+  return l ? ld(r) : sd(r);
 }
 /**
  * @summary **w**rap**D**OM**P**oint.
@@ -396,52 +652,84 @@ function immTr(r, t) {
   }
 }
 /**
- * @summary **g**et**N**orth**W**est
- * @description Gets the north-western vertex of the given `RectStruct` argument. More technically, get the `DOMPoint` with the
- * smallest `x` and smallest `y`.\
+ * @summary **getV**ertex**P**oin**t**of**Circ**umscribed**Rect**angle
+ * @description Gets a point at one of the vertex of the upright circumscribed rectangle in which the `RectStruct` argument is inscribed.\
  * \
- * This may be neccessary because the vertex points of the given rect may have transformed, and the original points displaced.
- * @param {RectStruct} r a `RectStruct` object
- * @returns {DOMPoint} a value representing the north-western vertex
+ * Note that the `RectStruct` argument may have been transformed, hence it is assumed that it's vertexes are not at their original
+ * positions, therefore, another circumscribed (bounding box) `RectStruct` is created such that the argument `r` is inscribed in it.
+ * @param {RectStruct} r a `RectStruct`.
+ * @param {0|1|2|3} [v] a `number` specifying which vertex to be returned. The following are valid values:
+ * - **`0`** (default) - Returns a point (`DOMPoint`) with the smallest `x` and smallest `y` of the bounding rectangle of `r`. That is, the
+ * north-western vertex of the bounding box (circumscribed upright rectangle) of the argument `r`
+ * - **`1`** - Returns a point (`DOMPoint`) with the largest `x` and smallest `y` of the bounding rectangle of `r`. That is, the
+ * north-eastern vertex of the bounding box (circumscribed upright rectangle) of the argument `r`
+ * - **`2`** - Returns a point (`DOMPoint`) with the largest `x` and largest `y` of the bounding rectangle of `r`. That is, the
+ * south-eastern vertex of the bounding box (circumscribed upright rectangle) of the argument `r`
+ * - **`3`** - Returns a point (`DOMPoint`) with the smallest `x` and largest `y` of the bounding rectangle of `r`. That is, the
+ * south-western vertex of the bounding box (circumscribed upright rectangle) of the argument `r`
+ * @returns {DOMPoint} a `DOMPoint` representing one of the vertex of the circumscribed rect of the rect formed by the argument `r`.
  */
-function gNW(r) {
-  return DOMPoint.fromPoint({x: Math.min(r.nw.x, r.ne.x, r.se.x, r.sw.x), y: Math.min(r.nw.y, r.ne.y, r.se.y, r.sw.y)});
-}
-/**
- * @summary **g**et**N**orth**E**ast
- * @description Gets the north-eastern vertex of the given `RectStruct` argument. More technically, get the `DOMPoint` with the
- * largest `x` and smallest `y`.\
- * \
- * This may be neccessary because the vertex points of the given rect may have transformed, and the original points displaced.
- * @param {RectStruct} r a `RectStruct` object
- * @returns {DOMPoint} a value representing the north-eastern vertex
- */
-function gNE(r) {
-  return DOMPoint.fromPoint({x: Math.max(r.nw.x, r.ne.x, r.se.x, r.sw.x), y: Math.min(r.nw.y, r.ne.y, r.se.y, r.sw.y)});
-}
-/**
- * @summary **g**et**S**outh**E**ast
- * @description Gets the south-eastern vertex of the given `RectStruct` argument. More technically, get the `DOMPoint` with the
- * largest `x` and largest `y`.\
- * \
- * This may be neccessary because the vertex points of the given rect may have transformed, and the original points displaced.
- * @param {RectStruct} r a `RectStruct` object
- * @returns {DOMPoint} a value representing the south-eastern vertex
- */
-function gSE(r) {
-  return DOMPoint.fromPoint({x: Math.max(r.nw.x, r.ne.x, r.se.x, r.sw.x), y: Math.max(r.nw.y, r.ne.y, r.se.y, r.sw.y)});
-}
-/**
- * @summary **g**et**S**outh**W**est
- * @description Gets the south-western vertex of the given `RectStruct` argument. More technically, get the `DOMPoint` with the
- * largest `x` and smallest `y`.\
- * \
- * This may be neccessary because the vertex points of the given rect may have transformed, and the original points displaced.
- * @param {RectStruct} r a `RectStruct` object
- * @returns {DOMPoint} a value representing the south-western vertex
- */
-function gSW(r) {
-  return DOMPoint.fromPoint({x: Math.max(r.nw.x, r.ne.x, r.se.x, r.sw.x), y: Math.min(r.nw.y, r.ne.y, r.se.y, r.sw.y)});
+function getVPtCircRect(r, v) {
+    // v = [0, 1, 2, 3].filter(n => v === n)[0] ?? 0;
+  /**
+   * @summary **g**et**N**orth**W**est
+   * @description Gets the north-western vertex of the given `RectStruct` argument. More technically, gets the `DOMPoint` with the
+   * smallest `x` and smallest `y` that is within the bounds of the `RectStruct` argument.\
+   * \
+   * This may be neccessary because the vertex points of the given rect may have transformed, and the original points displaced.
+   * @param {RectStruct} r a `RectStruct` object
+   * @returns {DOMPoint} a value representing the north-western vertex
+   */
+  function gNW(r) {
+    return DOMPoint.fromPoint({x: Math.min(r.nw.x, r.ne.x, r.se.x, r.sw.x), y: Math.min(r.nw.y, r.ne.y, r.se.y, r.sw.y)});
+  }
+  /**
+   * @summary **g**et**N**orth**E**ast
+   * @description Gets the north-eastern vertex of the given `RectStruct` argument. More technically, get the `DOMPoint` with the
+   * largest `x` and smallest `y`.\
+   * \
+   * This may be neccessary because the vertex points of the given rect may have transformed, and the original points displaced.
+   * @param {RectStruct} r a `RectStruct` object
+   * @returns {DOMPoint} a value representing the north-eastern vertex
+   */
+  function gNE(r) {
+    return DOMPoint.fromPoint({x: Math.max(r.nw.x, r.ne.x, r.se.x, r.sw.x), y: Math.min(r.nw.y, r.ne.y, r.se.y, r.sw.y)});
+  }
+  /**
+   * @summary **g**et**S**outh**E**ast
+   * @description Gets the south-eastern vertex of the given `RectStruct` argument. More technically, get the `DOMPoint` with the
+   * largest `x` and largest `y`.\
+   * \
+   * This may be neccessary because the vertex points of the given rect may have transformed, and the original points displaced.
+   * @param {RectStruct} r a `RectStruct` object
+   * @returns {DOMPoint} a value representing the south-eastern vertex
+   */
+  function gSE(r) {
+    return DOMPoint.fromPoint({x: Math.max(r.nw.x, r.ne.x, r.se.x, r.sw.x), y: Math.max(r.nw.y, r.ne.y, r.se.y, r.sw.y)});
+  }
+  /**
+   * @summary **g**et**S**outh**W**est
+   * @description Gets the south-western vertex of the given `RectStruct` argument. More technically, get the `DOMPoint` with the
+   * largest `x` and smallest `y`.\
+   * \
+   * This may be neccessary because the vertex points of the given rect may have transformed, and the original points displaced.
+   * @param {RectStruct} r a `RectStruct` object
+   * @returns {DOMPoint} a value representing the south-western vertex
+   */
+  function gSW(r) {
+    return DOMPoint.fromPoint({x: Math.min(r.nw.x, r.ne.x, r.se.x, r.sw.x), y: Math.max(r.nw.y, r.ne.y, r.se.y, r.sw.y)});
+  }
+  switch (v) {
+    default:
+    case 0:
+      return gNW(r);
+    case 1:
+      return gNE(r);
+    case 2:
+      return gSE(r);
+    case 3:
+      return gSW(r);
+  }
 }
 /**
  * @summary **cr**eate**B**ounding**B**ox
@@ -452,28 +740,77 @@ function gSW(r) {
  * argument) so that the returned `DOMRect` is the bounding box of the post-transformed shape/element.
  * @param {DOMRect} r the rect to be transformed
  * @param {DOMMatrix} t the `transform` to be used
+ * @param {Line} h the horizontal endpoints at which the shape touches the `DOMRect`.
+ * @param {Line} v the vertical endpoints at which the shape touches the `DOMRect`.
  * @returns {DOMRect} the bounding box of the post-transformed shape whose pre-transformed bounding box is the first
  * argument `r`.
+ * @test
+ * ```html
+ * <circle stroke-width="1" fill="none" stroke="#000000" cx="212.32801896310784" cy="162.15110062290316" id="756-174-0" class="ds" r="51" data-s="" transform="scale(1.7,1) rotate(82,391,229) skewX(33) skewY(20)"></circle>
+ * ```
  */
-function crBB(r, t) {
+function crBB(r, t,
+  h = [
+    DOMPoint.fromPoint({x: r.left, y:r.top + (r.height / 2)}),
+    DOMPoint.fromPoint({x: r.right, y:r.top + (r.height / 2)})
+  ],
+  v = [
+    DOMPoint.fromPoint({x: r.left + (r.width / 2), y: r.top}),
+    DOMPoint.fromPoint({x: r.left + (r.width / 2), y: r.bottom})
+  ]) {
   const q = frDR(r);//quad
+  const ratio = (getD([q.nw, q.sw]) / getD(h)) / 2;
   const tr = immTr(q, t);
-  // const cv = document.getElementById("canvas");
-  // cv.appendChild(circ(tr.nw, "nw", "yellow"));
-  // cv.appendChild(circ(tr.ne, "ne", "magenta"));
-  // cv.appendChild(circ(tr.se, "se", "cyan"));
-  // cv.appendChild(circ(tr.sw, "sw", "purple"));
-  // cv.appendChild(circ(tr.c, "c", "gray"));
-  // cv.appendChild(lin([tr.nw, tr.se], "tl-br", "blue"));
-  // cv.appendChild(lin([tr.sw, tr.ne], "bl-tr", "green"));
+  const l = diag(tr);
+  const s = diag(tr, false);
+  h[0] = h[0].matrixTransform(t);
+  h[1] = h[1].matrixTransform(t);
+  v[0] = v[0].matrixTransform(t);
+  v[1] = v[1].matrixTransform(t);
+  const cv = document.getElementById("canvas");
+  // let prp = tPar(l, tr.ne);
+  // cv.appendChild(lin(prp, "prl1", "orange"));
+  // prp = tPerp(prp, tr.se);
+  // cv.appendChild(lin(prp, "prp"));
+  // cv.appendChild(lin(l, "l", "darkgray"));
+  // cv.appendChild(circ(tr.c, "c", "gray")).classList.add("guide");
+  // cv.appendChild(circ(tr.nw, "nw", "yellow")).classList.add("guide");
+  // cv.appendChild(circ(tr.ne, "ne", "magenta")).classList.add("guide");
+  // cv.appendChild(circ(tr.se, "se", "cyan")).classList.add("guide");
+  // cv.appendChild(circ(tr.sw, "sw", "purple")).classList.add("guide");
+  // cv.appendChild(lin([tr.nw, tr.se], "tl-br", "blue")).classList.add("guide");
+  // cv.appendChild(lin([tr.sw, tr.ne], "bl-tr", "green")).classList.add("guide");
+  // cv.appendChild(lin(h, "h", "orange")).classList.add("guide");
+  // cv.appendChild(lin(v, "v", "brown")).classList.add("guide");
+  // let trg = frHyp(s);
+  // cv.appendChild(tri([trg.x, trg.y, trg.z], "tr1", "black")).classList.add("guide");
+  // trg = frHyp(s, false);
+  // cv.appendChild(tri([trg.x, trg.y, trg.z], "tr2", "black")).classList.add("guide");
+  // trg = frHyp(l);
+  // cv.appendChild(tri([trg.x, trg.y, trg.z], "tr3", "darkgoldenrod")).classList.add("guide");
+  // trg = frHyp(l, false);
+  // cv.appendChild(tri([trg.x, trg.y, trg.z], "tr4", "darkgoldenrod")).classList.add("guide");
+  // const nw = getVPtCircRect(tr);
+  // cv.appendChild(rectangle(
+  //   DOMRect.fromRect({ x: nw.x, y: nw.y, width: getD([nw, getVPtCircRect(tr, 1)]), height: getD([nw, getVPtCircRect(tr, 3)])}),
+  //   "outer-rect", "aqua"
+  // )).classList.add("guide");
 
   // Calculations for rotation
-  const dim = {width: getD([tr.nw, tr.ne]), height: getD([tr.nw, tr.sw])};
+  // console.log(Math.abs(tr.nw.y - tr.sw.y), Math.abs(tr.nw.x - tr.ne.x));
+  const [width, height] = [getD([reflect(tr.c, [tr.nw, tr.sw]), tr.c]), getD([reflect(tr.c, [tr.nw, tr.sw]), tr.c])]
+  // const dim = {width: getD([tr.nw, tr.ne]), height: getD([tr.nw, tr.sw])}; // original
   return DOMRect.fromRect({
-    x: tr.c.x - (dim.width / 2),
-    y: tr.c.y - (dim.height / 2),
-    ...dim
+    x: tr.c.x - (width / 2),
+    y: tr.c.y - (height / 2),
+    width,
+    height
   });
+  // return DOMRect.fromRect({
+  //   x: tr.c.x - (dim.width / 2),
+  //   y: tr.c.y - (dim.height / 2),
+  //   ...dim
+  // });
 }
 /**
  * @summary **circ**le
@@ -494,6 +831,66 @@ function circ(cp, id, cl = "red") {
   c.setAttribute("cy", cp.y);
   try {c.remove();} catch (e) {}
   return c;
+  
+}
+/**
+ * @summary **rectangle**
+ * @description Constructs an SVG `<rect>` element with no fill but outlined with the given CSS color. If the element already exists in the DOM, then the given id is used to retrieve it.
+ * @param {DOMRect} r the rect from which the element is drawn. This holds the location and dimension data
+ * @param {string} id the HTML id of the returned element
+ * @param {string} cl the optional CSS colour of the outline the retuirned `<rect>` element.
+ */
+function rectangle(r, id, cl="red") {
+  const rt = document.getElementById(id) ?? document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  rt.setAttribute("id", id);
+  rt.setAttribute("stroke", cl);
+  rt.setAttribute("stroke-width", "0.5");
+  rt.setAttribute("fill", "none");
+  rt.setAttribute("x", r.x);
+  rt.setAttribute("y", r.y);
+  rt.setAttribute("width", r.width);
+  rt.setAttribute("height", r.height);
+  try {rt.remove();} catch (e) {}
+  return rt;
+}
+/**
+ * @summary **tri**angle
+ * @description Constructs an SVG `<polygon>` element representing a triangle with no fill but outlined with the given CSS color. If the element already exists in the DOM, then the given id is used to retrieve it.
+ * @param {Triangle} t the triangle from which the element is drawn. This holds the location and dimension data
+ * @param {string} id the HTML id of the returned element
+ * @param {string} cl the optional CSS colour of the outline the returned `<polygon>` element representing a triangle.
+ */
+function tri(t, id, cl="red") {
+  const tg = document.getElementById(id) ?? document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+  tg.setAttribute("id", id);
+  tg.setAttribute("stroke", cl);
+  tg.setAttribute("stroke-width", "0.5");
+  tg.setAttribute("fill", "none");
+  tg.setAttribute("points", t.map(x => x.x + "," + x.y).join(' '));
+  try {tg.remove();} catch (e) {}
+  return tg;
+}
+/**
+ * @summary **lin**e
+ * @description Constructs an SVG `<line>` element with no fill but outlined with the given CSS color. If the element
+ * already exists in the DOM, then the given `id` is used to retrieve it.
+ * @param {Line} l the endpoints of this line
+ * @param {string} id the HTML `id` of the `<line>` element
+ * @param {string} cl the CSS color used as the stroke
+ * @returns {SVGCircleElement} a pre-configured `<line>` element
+ */
+function lin(l, id, cl = "red") {
+  const ln = document.getElementById(id) ?? document.createElementNS("http://www.w3.org/2000/svg", "line");
+  ln.setAttribute("id", id);
+  ln.setAttribute("stroke", cl);
+  ln.setAttribute("stroke-width", "0.5");
+  ln.setAttribute("fill", "none");
+  ln.setAttribute("x1", l[0].x);
+  ln.setAttribute("y1", l[0].y);
+  ln.setAttribute("x2", l[1].x);
+  ln.setAttribute("y2", l[1].y);
+  try {ln.remove();} catch (e) {}
+  return ln;
   
 }
 /**
@@ -561,29 +958,6 @@ function txtCtrl(val, unit, id) {
   li.appendChild(selectSpan);
   
   return li;
-}
-/**
- * @summary **lin**e
- * @description Constructs an SVG `<line>` element with no fill but outlined with the given CSS color. If the element
- * already exists in the DOM, then the given `id` is used to retrieve it.
- * @param {[DOMPoint, DOMPoint]} l the endpoints of this line
- * @param {string} id the HTML `id` of the `<line>` element
- * @param {string} cl the CSS color used as the stroke
- * @returns {SVGCircleElement} a pre-configured `<line>` element
- */
-function lin(l, id, cl = "red") {
-  const ln = document.getElementById(id) ?? document.createElementNS("http://www.w3.org/2000/svg", "line");
-  ln.setAttribute("id", id);
-  ln.setAttribute("stroke", cl);
-  ln.setAttribute("stroke-width", "0.5");
-  ln.setAttribute("fill", "none");
-  ln.setAttribute("x1", l[0].x);
-  ln.setAttribute("y1", l[0].y);
-  ln.setAttribute("x2", l[1].x);
-  ln.setAttribute("y2", l[1].y);
-  try {ln.remove();} catch (e) {}
-  return ln;
-  
 }
 /**
  * @description Gets the bounding box of a shape after skew transformation
@@ -3291,7 +3665,7 @@ const transform = {
             .split(" ")
             .filter((x) => x.indexOf("skewX") < 0)
             .join(" ");
-          shape.dataset.skwx = transform.skewX.v(id) ?? "";
+          shape.dataset.skwx = ("skewX(" + transform.skewX.v(id) + ")") ?? "";
           if (val && val.length > 0) shape.setAttribute("transform", val);
           else shape.removeAttribute("transform");
 
@@ -3413,7 +3787,7 @@ const transform = {
             .split(" ")
             .filter((x) => x.indexOf("skewY") < 0)
             .join(" ");
-          shape.dataset.skwy = transform.skewY.v(id) ?? "";
+          shape.dataset.skwy = ("skewY(" + transform.skewY.v(id) + ")") ?? "";
           if (val && val.length > 0) shape.setAttribute("transform", val);
           else shape.removeAttribute("transform");
 
@@ -5998,9 +6372,13 @@ const circle = {
       .split("|")
       .reduce((p, c, i, a) => ({ x: Number(a[0]), y: Number(a[1]) }));
     const m = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    const [dx, dy] = [m.x - start.x, m.y - start.y];
-    cir.setAttribute("cx", cirStart.x + dx);
-    cir.setAttribute("cy", cirStart.y + dy);
+    const clone = cir.getCTM().isIdentity ? cir.getCTM() : DOMMatrix.fromMatrix(cir.getCTM()).inverse();
+    const {x, y} = DOMPoint.fromPoint(m).matrixTransform(clone);
+    // const [dx, dy] = [m.x - start.x, m.y - start.y];
+    // cir.setAttribute("cx", cirStart.x + dx);
+    // cir.setAttribute("cy", cirStart.y + dy);
+    cir.setAttribute("cx", x);
+    cir.setAttribute("cy", y);
     dot.setAttribute("cx", m.x);
     dot.setAttribute("cy", m.y);
   },

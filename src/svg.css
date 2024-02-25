@@ -4,7 +4,7 @@ svg#canvas { border: 1px solid #00000000; }
 svg#canvas:hover { border-color: black; }
 svg#canvas[data-action="insert"]:hover {cursor: crosshair;}
 svg#canvas[data-action="insert"] > * { pointer-events: none; }
-svg#canvas > g#gl > * { pointer-events: none; }
+svg#canvas > g#gl > *, .guide { pointer-events: none; }
 svg .ds:hover {
 	stroke-width: 6px;
 }
