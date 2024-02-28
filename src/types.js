@@ -182,6 +182,22 @@ function arr2Vec(a) {
 
   return a;
 }
-/**@type {Vector} */
-const a = [2, 3, 4];
-const b = a(i)
+/**
+ * GeoMetrize types
+ */
+/**
+ * @typedef {Object} Matrix2D
+ * @property {number} $00
+ * @property {number} $01
+ * @property {number} $02
+ * @property {number} $10
+ * @property {number} $11
+ * @property {number} $12
+ */
+/**
+ * @typedef {Object} GeoMetrizeBBox
+ * @property {number} xmin
+ * @property {number} ymin
+ * @property {number} xmax
+ * @property {number} ymax
+ */

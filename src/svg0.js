@@ -259,7 +259,7 @@ function pta(s) {
 }
 /**
  * A 2-length tuple representing the endpoints of a line such that the first element is one end and the last is another.
- * @typedef {[DOMPoint, DOMPoint]} Line
+ * @typedef {[Point, Point]} Line
  */
 /**
  * Gets the slope of the given line.
@@ -481,7 +481,7 @@ function sortPt(p, by = 'x', a = true) {
 }
 /**
  * @summary **sortL**i**n**e
- * @param {Object} args
+ * @param {Object} args The destructed arguments.
  * @param {Line[]} args.l an array of 2-length arrays with each index consisting of a `DOMPoint`.
  * @param {'x'|'y'|'z'} [args.by='x'] specifies the point property by which the ordering is done
  * @param {'min'|'max'} [args.m='min'] specifies whether the ordering is done by the minimum (default)
@@ -492,6 +492,26 @@ function sortPt(p, by = 'x', a = true) {
  */
 function sortLn({l, by = 'x', m = "min", a = true}) {
   return a ? l.sort((l1, l2) => Math[m](l1[0][by], l1[1][by]) - Math[m](l2[0][by], l2[1][by])) : l.sort((l1, l2) => Math[m](l2[0][by], l2[1][by]) - Math[m](l1[0][by], l1[1][by]));
+}
+/**
+ * @summary **eq**uals**P**oin**t**
+ * @description Checks both points for equality.
+ * @param {Point} p1 a point
+ * @param {Point} p2 the second point
+ * @returns {boolean} `true` if both points have the same location else returns `false`
+ */
+function eqPt(p1, p2) {
+  return p1.x === p2.x && p1.y === p2.y;
+}
+/**
+ * @summary **eq**uals**L**i**n**e
+ * @description Checks both lines for equality.
+ * @param {Line} l1 a first line segment
+ * @param {Line} l2 the second line segment
+ * @returns {boolean} `true` if both line segments have the same location else returns `false`
+ */
+function eqLn(l1, l2) {
+  return eqPt(locVect(l1), locVect(l2));
 }
 /**
  * An interface representing a shape that can apply a given `transform` to itself without changing (mutating)
@@ -510,9 +530,13 @@ function sortLn({l, by = 'x', m = "min", a = true}) {
  * and the centre point. Each of these points can be transformed separately wiout mutating the whole rectangle.
  * @typedef {Object} RectStruct
  * @property {DOMPoint & TransformablePoint} nw the north-west (top-left) point of the rectangle.
+ * @property {DOMPoint & TransformablePoint} n the point directly above the centre of the rectangle i.e vertical north of the rectangle. 
  * @property {DOMPoint & TransformablePoint} ne the north-east (top-right) point of the rectangle.
+ * @property {DOMPoint & TransformablePoint} e the point directly right of the centre of the rectangle i.e horizontal east of the rectangle.
  * @property {DOMPoint & TransformablePoint} se the south-east (bottom-right) point of the rectangle.
+ * @property {DOMPoint & TransformablePoint} s the point directly below the centre of the rectangle i.e vertical south of the rectangle.
  * @property {DOMPoint & TransformablePoint} sw the south-west (bottom-left) point of the rectangle.
+ * @property {DOMPoint & TransformablePoint} w the point directly left of the centre of the rectangle i.e horizontal west of the rectangle.
  * @property {DOMPoint & TransformablePoint} c the central point of the rectangle.
  */
 /**
@@ -629,9 +653,13 @@ function wDP(p) {
 function frDR(r) {
   return {
     nw: wDP(DOMPoint.fromPoint({x: r.left, y: r.top})),
+    n: wDP(DOMPoint.fromPoint({x: r.left + (r.width / 2), y: r.top})),
     ne: wDP(DOMPoint.fromPoint({x: r.left + r.width, y: r.top})),
+    e: wDP(DOMPoint.fromPoint({x: r.left + r.width, y: r.top + (r.height / 2)})),
     se: wDP(DOMPoint.fromPoint({x: r.left + r.width, y: r.top + r.height})),
+    s: wDP(DOMPoint.fromPoint({x: r.left + (r.width / 2), y: r.top + r.height})),
     sw: wDP(DOMPoint.fromPoint({x: r.left, y: r.top + r.height})),
+    w: wDP(DOMPoint.fromPoint({x: r.left, y: r.top + (r.height / 2)})),
     c: wDP(DOMPoint.fromPoint({x: r.left + (r.width / 2), y: r.top + (r.height / 2)})),
   };
 }
@@ -643,12 +671,35 @@ function frDR(r) {
  * @returns {RectStruct} the transformed rect. Note that the returned values donot implement {@linkcode Transformable} interface (functor).
  */
 function immTr(r, t) {
-  return {
-    nw: r.nw.tr(t),
-    ne: r.ne.tr(t),
-    se: r.se.tr(t),
-    sw: r.sw.tr(t),
-    c: r.c.tr(t)
+  return Object.keys(r).reduce((p, c) => {
+    p[c] = r[c].tr(t);
+    return p;
+  }, {});
+  // return {
+  //   nw: r.nw.tr(t),
+  //   ne: r.ne.tr(t),
+  //   se: r.se.tr(t),
+  //   sw: r.sw.tr(t),
+  //   c: r.c.tr(t)
+  // }
+}
+/**
+ * Gets the north-west (0) (default), north (0.5), north-east (1)
+ * @param {Point[]} p the list of points to search
+ * @param {number} dir the direction of the point.
+ * @returns {Point}
+ */
+function compassPoints(p, dir) {
+  switch(dir) {
+    case 0:
+    default:
+      return {x: Math.min(...p.map(x => x.x)), y: Math.min(...p.map(y => y.y))};
+    case 1:
+      return {x: Math.max(...p.map(x => x.x)), y: Math.min(...p.map(y => y.y))};
+    case 2:
+      return {x: Math.max(...p.map(x => x.x)), y: Math.max(...p.map(y => y.y))};
+    case 3:
+      return {x: Math.min(...p.map(x => x.x)), y: Math.max(...p.map(y => y.y))};
   }
 }
 /**
@@ -669,67 +720,75 @@ function immTr(r, t) {
  * south-western vertex of the bounding box (circumscribed upright rectangle) of the argument `r`
  * @returns {DOMPoint} a `DOMPoint` representing one of the vertex of the circumscribed rect of the rect formed by the argument `r`.
  */
-function getVPtCircRect(r, v) {
-    // v = [0, 1, 2, 3].filter(n => v === n)[0] ?? 0;
-  /**
-   * @summary **g**et**N**orth**W**est
-   * @description Gets the north-western vertex of the given `RectStruct` argument. More technically, gets the `DOMPoint` with the
-   * smallest `x` and smallest `y` that is within the bounds of the `RectStruct` argument.\
-   * \
-   * This may be neccessary because the vertex points of the given rect may have transformed, and the original points displaced.
-   * @param {RectStruct} r a `RectStruct` object
-   * @returns {DOMPoint} a value representing the north-western vertex
-   */
-  function gNW(r) {
-    return DOMPoint.fromPoint({x: Math.min(r.nw.x, r.ne.x, r.se.x, r.sw.x), y: Math.min(r.nw.y, r.ne.y, r.se.y, r.sw.y)});
-  }
-  /**
-   * @summary **g**et**N**orth**E**ast
-   * @description Gets the north-eastern vertex of the given `RectStruct` argument. More technically, get the `DOMPoint` with the
-   * largest `x` and smallest `y`.\
-   * \
-   * This may be neccessary because the vertex points of the given rect may have transformed, and the original points displaced.
-   * @param {RectStruct} r a `RectStruct` object
-   * @returns {DOMPoint} a value representing the north-eastern vertex
-   */
-  function gNE(r) {
-    return DOMPoint.fromPoint({x: Math.max(r.nw.x, r.ne.x, r.se.x, r.sw.x), y: Math.min(r.nw.y, r.ne.y, r.se.y, r.sw.y)});
-  }
-  /**
-   * @summary **g**et**S**outh**E**ast
-   * @description Gets the south-eastern vertex of the given `RectStruct` argument. More technically, get the `DOMPoint` with the
-   * largest `x` and largest `y`.\
-   * \
-   * This may be neccessary because the vertex points of the given rect may have transformed, and the original points displaced.
-   * @param {RectStruct} r a `RectStruct` object
-   * @returns {DOMPoint} a value representing the south-eastern vertex
-   */
-  function gSE(r) {
-    return DOMPoint.fromPoint({x: Math.max(r.nw.x, r.ne.x, r.se.x, r.sw.x), y: Math.max(r.nw.y, r.ne.y, r.se.y, r.sw.y)});
-  }
-  /**
-   * @summary **g**et**S**outh**W**est
-   * @description Gets the south-western vertex of the given `RectStruct` argument. More technically, get the `DOMPoint` with the
-   * largest `x` and smallest `y`.\
-   * \
-   * This may be neccessary because the vertex points of the given rect may have transformed, and the original points displaced.
-   * @param {RectStruct} r a `RectStruct` object
-   * @returns {DOMPoint} a value representing the south-western vertex
-   */
-  function gSW(r) {
-    return DOMPoint.fromPoint({x: Math.min(r.nw.x, r.ne.x, r.se.x, r.sw.x), y: Math.max(r.nw.y, r.ne.y, r.se.y, r.sw.y)});
-  }
+function getVPtCircRect(r, v/*, exclude = []*/) {
+    const x = Object.keys(r)./*filter(x => exclude.indexOf(x) >= 0).*/map(x => r[x].x);
+    const y = Object.keys(r)./*filter(x => exclude.indexOf(x) >= 0).*/map(y => r[y].y);
   switch (v) {
     default:
     case 0:
-      return gNW(r);
+      return DOMPoint.fromPoint({x: Math.min(...x), y: Math.min(...y)});
     case 1:
-      return gNE(r);
+      return DOMPoint.fromPoint({x: Math.max(...x), y: Math.min(...y)});
     case 2:
-      return gSE(r);
+      return DOMPoint.fromPoint({x: Math.max(...x), y: Math.max(...y)});
     case 3:
-      return gSW(r);
+      return DOMPoint.fromPoint({x: Math.min(...x), y: Math.max(...y)});
   }
+}
+/**
+ * @summary **loc**ated**Vec**tor
+ * @description Constructs a mathematical vector (in form of a {@linkcode Point}) from the given `Line` returning a located vector.
+ * A located (position) vector is a vector constructed from the 2 endpoints of a line.
+ * @param {Line} l a 2-length number array where the first element serves as the origin and the last serves as the location in the
+ * coordinate system.
+ * @returns {Point} a location in a coordinate system where the origin (0,0) is the first index of the argument.
+ */
+function locVect(l){
+  return {x: l[1].x - l[0].x, y: l[1].y - l[0].y};
+}
+/**
+ * @summary **vec**tor**Dir**ection
+ * @description Computes the direction of the resultant positional vector of the given line segment.
+ * @param {Line} l a line segment
+ * @returns {number} the direction of the resultant positional vector of
+ * the argument
+ */
+function vecDir(l){
+  return angDepr(l);
+}
+/**
+ * @summary **ang**leOf**Depr**ession
+ * @description Gets the angle (in radians) that the x-axis makes with the line, i.e the angle of depression given that the line of sight is
+ * the argument. Note that this uses the coordinate system of DOM APIs.
+ * @param {Line} l a 2-length array with the first element as the origin (start) and the second as the endpoint.
+ * @returns {number} the angle (in radians) of depression. 
+ */
+function angDepr(l) {
+  const {x, y} = locVect(l);
+  return Math.atan2(y, x);
+}
+/**
+ * calculates the bounding box (axis-aligned) of the given element.
+ * @param {SVGCircleElement} e an SVG `<circle>` element
+ * @returns {DOMRect}
+ */
+function cBB(e) {
+  const canvas = document.getElementById("canvas");
+  const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  const hasTransform = e.hasAttribute("transform");
+  canvas.appendChild(group);
+  if(hasTransform) {
+    group.setAttribute("transform", e.getAttribute("transform"));
+    e.removeAttribute("transform");
+  }
+  const parentGroup = e.parentElement;
+  const bb = group.appendChild(parentGroup.removeChild(e)).getBBox();
+  // console.log(bb);
+  parentGroup.appendChild(group.removeChild(e));
+  if(hasTransform) e.setAttribute("transform", group.getAttribute("transform"));
+  // console.log(bb);
+  group.remove();
+  return bb;
 }
 /**
  * @summary **cr**eate**B**ounding**B**ox
@@ -749,26 +808,76 @@ function getVPtCircRect(r, v) {
  * <circle stroke-width="1" fill="none" stroke="#000000" cx="212.32801896310784" cy="162.15110062290316" id="756-174-0" class="ds" r="51" data-s="" transform="scale(1.7,1) rotate(82,391,229) skewX(33) skewY(20)"></circle>
  * ```
  */
-function crBB(r, t,
-  h = [
-    DOMPoint.fromPoint({x: r.left, y:r.top + (r.height / 2)}),
-    DOMPoint.fromPoint({x: r.right, y:r.top + (r.height / 2)})
-  ],
-  v = [
-    DOMPoint.fromPoint({x: r.left + (r.width / 2), y: r.top}),
-    DOMPoint.fromPoint({x: r.left + (r.width / 2), y: r.bottom})
-  ]) {
+function crBB(r, t) {
   const q = frDR(r);//quad
-  const ratio = (getD([q.nw, q.sw]) / getD(h)) / 2;
   const tr = immTr(q, t);
-  const l = diag(tr);
-  const s = diag(tr, false);
-  h[0] = h[0].matrixTransform(t);
-  h[1] = h[1].matrixTransform(t);
-  v[0] = v[0].matrixTransform(t);
-  v[1] = v[1].matrixTransform(t);
-  const cv = document.getElementById("canvas");
+
+  //handle transforms
+  const dimension = {width: r.width, height: r.height};
+
+  const [dg1, dg2] = [[tr.nw, tr.se], [tr.sw, tr.ne]];//diagonals
+  const [dg1l, dg2l] = [getD(dg1), getD(dg2)];//lengths of the diagonals
+  /* horizontal and vertical line segments going through the center */
+  const [hd, vd] = [[tr.w, tr.e], [tr.n, tr.s]];
+  const [w, h] = [getD(hd), getD(vd)];//width and height
+  const compass = [tr.c, tr.e];
+  const direction = vecDir(compass);
+
+  // console.log(tDeg(direction));
+
+  // const isSkewed = dg1l !== dg2l;
+  // const isScaled = Math.abs(w - h) > 0.1;
+  // const isRotated = Math.abs(direction) === Math.PI / 2 || Math.abs(direction) <= 0.01;
+
+  if(Math.abs(dg1l - dg2l) > 0.1) { //skew involved in transform
+    const topo = [tr.nw, tr.ne, tr.se, tr.sw];
+    const [nw0, ne0, sw0] = [getVPtCircRect(tr, 0), getVPtCircRect(tr, 1), getVPtCircRect(tr, 3)];
+    const [nw1, ne1, sw1] = [compassPoints(topo, 0), compassPoints(topo, 1), compassPoints(topo, 3)];
+    const [nw, ne, sw] = (() => {
+      let nw = {x:nw0.x + Math.abs((nw1.x - nw0.x) / 2), y: nw0.y + Math.abs((nw1.y - nw0.y) / 2)};
+      let ne = {x:ne0.x - Math.abs((ne0.x - ne1.x) / 2), y: nw.y};
+      let sw = {x:nw.x, y: sw0.y - Math.abs((sw1.y - sw0.y) / 2)};
+      return [nw, ne, sw];
+    })();
+    dimension.width = getD([nw, ne]);
+    // dimension.width -= dimension.width/2
+    dimension.height = getD([nw, sw]);
+    // dimension.height -= dimension.height/2
+    // console.log("skewed!", dimension);
+  } else // rotation (or scale, reflection?) involved in transform
+  if((Math.abs(w - h) > 0.1) || (Math.abs(direction) === Math.PI / 2 || Math.abs(direction) <= 0.01)) {
+    // const [nw, ne, sw] = [getVPtCircRect(tr, 0), getVPtCircRect(tr, 1), getVPtCircRect(tr, 3)];
+    const s = Object.keys(tr).reduce((p, c) => {
+      p.xm = Math.min(p.xm, tr[c].x);
+      p.xx = Math.max(p.xx, tr[c].x);
+      p.ym = Math.min(p.ym, tr[c].y);
+      p.yx = Math.max(p.yx, tr[c].y);
+      return p;
+    }, {xm: Number.MAX_SAFE_INTEGER, ym:Number.MAX_SAFE_INTEGER, xx:Number.MIN_SAFE_INTEGER, yx:Number.MIN_SAFE_INTEGER, });
+    dimension.width = getD([{x:s.xm,y:s.ym}, {x:s.xx,y:s.ym}]);
+    dimension.height = getD([{x:s.xm,y:s.ym}, {x:s.xm,y:s.yx}]);
+    // console.log("rotated!", dimension);
+  }
+  // console.log(dimension);
+
+  return DOMRect.fromRect({
+    x: tr.c.x - (dimension.width / 2),
+    y: tr.c.y - (dimension.height / 2),
+    ...dimension
+  });
+/*
+  // const l = diag(tr);
+  // const s = diag(tr, false);
+  // h[0] = h[0].matrixTransform(t);
+  // h[1] = h[1].matrixTransform(t);
+  // v[0] = v[0].matrixTransform(t);
+  // v[1] = v[1].matrixTransform(t);
   // let prp = tPar(l, tr.ne);
+  const cv = document.getElementById("canvas");
+  cv.appendChild(lin([tr.n, tr.s], "n-s", "red")).classList.add("guide");
+  cv.appendChild(lin([tr.w, tr.e], "w-e", "green")).classList.add("guide");
+  cv.appendChild(lin([tr.nw, tr.se], "nw-se", "blue")).classList.add("guide");
+  cv.appendChild(lin([tr.sw, tr.ne], "sw-ne", "black")).classList.add("guide");
   // cv.appendChild(lin(prp, "prl1", "orange"));
   // prp = tPerp(prp, tr.se);
   // cv.appendChild(lin(prp, "prp"));
@@ -798,19 +907,147 @@ function crBB(r, t,
 
   // Calculations for rotation
   // console.log(Math.abs(tr.nw.y - tr.sw.y), Math.abs(tr.nw.x - tr.ne.x));
-  const [width, height] = [getD([reflect(tr.c, [tr.nw, tr.sw]), tr.c]), getD([reflect(tr.c, [tr.nw, tr.sw]), tr.c])]
-  // const dim = {width: getD([tr.nw, tr.ne]), height: getD([tr.nw, tr.sw])}; // original
-  return DOMRect.fromRect({
-    x: tr.c.x - (width / 2),
-    y: tr.c.y - (height / 2),
-    width,
-    height
-  });
-  // return DOMRect.fromRect({
-  //   x: tr.c.x - (dim.width / 2),
-  //   y: tr.c.y - (dim.height / 2),
-  //   ...dim
-  // });
+  const angle = angDepr([tr.c, tr.n]);
+  // const [nw, ne, sw] = [getVPtCircRect(tr, 0), getVPtCircRect(tr, 1), getVPtCircRect(tr, 3)];
+  // const [d1, d2] = sortLn({l: [[tr.nw, tr.ne], [tr.nw, tr.sw]], by: "y"});
+  const [d1, d2] = [getD([tr.n, tr.s]), getD([tr.w, tr.e])];
+  // const dim = {width: getD([nw, ne]), height: getD([nw, sw])}; // original
+  const dim = {width: d2, height:d1};
+
+  if(Math.abs(angle) === (Math.PI / 2) || Math.abs(angle) === 0) {
+    // return DOMRect.fromRect({
+    //   x: tr.c.x - (width / 2),
+    //   y: tr.c.y - (height / 2),
+    //   width,
+    //   height
+    // });
+    return DOMRect.fromRect({
+      x: tr.c.x - (dim.width / 2),
+      y: tr.c.y - (dim.height / 2),
+      ...dim
+    });
+  }
+
+  // console.log(dim, toDegrees(angle), tr.c)
+
+  // return bbecl(tr.c, {x: dim.width / 2, y: dim.height / 2}, angle);
+  // return axABBoxEp(tr.c, {width: dim.width / 2, height: dim.height / 2}, angle);
+  return bb_ellipse(tr.c.x, tr.c.y, dim.width / 2, dim.height / 2, angle);*/
+
+}
+/**
+ * @summary **asGeom**etri**z**e**Mat**rix**2D**
+ * @description Wraps the given `DOMMatrix` with the Geometrize library `Matrix2D`.
+ * @param {DOMMatrix} m a matrix to be wrapped
+ * @returns {Matrix2D}
+ */
+function asGeomzMat2D(m){
+  // return Geometrize.Matrix2D(
+  //   m.a, m.b, m.c, m.d, m.e, m.f
+  // );
+  return Geometrize.Matrix2D(
+    m.a, m.c, m.e,
+    m.b, m.d, m.f
+  );
+}
+/**
+ * @summary **ax**is**Al**igned**B**ounding**Box**Of**E**lli**p**se
+ * @description Calculates and returns the axis-aligned bounding box for an ellipse with the given centre, axis and angle of rotation.
+ * @param {Point} centre the centre pf the ellipse
+ * @param {Dimension} axis the length of the minor axis (width) and major axis (height) i.e the radius of the x and y axis respectively
+ * @param {number} angle the angle (in radians) to which the eliipse is tilted. A value equal to `Math.PI / 2` or `0` means that the
+ * ellipse is right-side up (upright or axis-aligned).
+ * @returns {{x:number, y:number, width: number, height: number}} the axis-aligned circumscribed rectangle (bounding box) for this ellipse.
+ */
+function axABBoxEp(centre,axis,angle) {
+  let a = axis.width * Math.cos(angle);
+  let b = axis.height * Math.sin(angle);
+  let c = axis.width * Math.sin(angle);
+  let d = axis.height * Math.cos(angle);
+  let width = Math.sqrt(Math.pow(a, 2) + Math.pow(b, 2)) * 2;
+  let height = Math.sqrt(Math.pow(c, 2) + Math.pow(d, 2)) * 2;
+  let x = centre.x - (width * 0.5);
+  let y = centre.y - (height * 0.5);
+  return {
+    x,y,width,height
+  };
+}
+/**
+ * 
+ * @param {number} theta 
+ * @param {number} cx 
+ * @param {number} cy 
+ * @param {number} rx 
+ * @param {number} ry 
+ * @param {number} alpha 
+ * @returns 
+ */
+function arc(theta, cx, cy, rx, ry, alpha)
+{
+    // theta is angle in radians around arc
+    // alpha is angle of rotation of ellipse in radians
+    const cos = Math.cos(alpha), sin = Math.sin(alpha),
+      x = rx*Math.cos(theta), y = ry*Math.sin(theta);
+    return {
+        x: cx + cos*x - sin*y,
+        y: cy + sin*x + cos*y
+    };
+}
+/**
+ * 
+ * @param {number} cx 
+ * @param {number} cy 
+ * @param {number} rx 
+ * @param {number} ry 
+ * @param {number} alpha 
+ * @returns 
+ */
+function bb_ellipse(cx, cy, rx, ry, alpha)
+{
+    var tan = Math.tan(alpha),
+        p1, p2, p3, p4, theta,
+        xmin, ymin, xmax, ymax
+    ;
+    // find min/max from zeroes of directional derivative along x and y
+    // along x axis
+    theta = Math.atan2(-ry*tan, rx);
+    // get point for this theta
+    p1 = arc(theta, cx, cy, rx, ry, alpha);
+    // get anti-symmetric point
+    p2 = arc(theta + Math.PI, cx, cy, rx, ry, alpha);
+    // along y axis
+    theta = Math.atan2(ry, rx*tan);
+    // get point for this theta
+    p3 = arc(theta, cx, cy, rx, ry, alpha);
+    // get anti-symmetric point
+    p4 = arc(theta + Math.PI, cx, cy, rx, ry, alpha);
+    // compute min/max values
+    ymin = Math.min(p3.y, p4.y)
+    xmin = Math.min(p1.x, p2.x);
+    ymax = Math.max(p3.y, p4.y);
+    xmax = Math.max(p1.x, p2.x);
+    // return bounding box vertices
+    return {x: xmin, y: ymin, width: xmax - xmin, height: ymax - ymin};
+    // return [
+    // {x: xmin, y: ymin},
+    // {x: xmax, y: ymin},
+    // {x: xmax, y: ymax},
+    // {x: xmin, y: ymax}
+    // ];
+}
+function bbecl(c, r, a) {
+  // let radians = degrees * (Math.PI / 180);
+  let r90 = a + Math.PI / 2;
+  let ux = r.x * Math.cos(a);
+  let uy = r.x * Math.sin(a);
+  // let vx = r.y * Math.cos(r90);
+  // let vy = r.y * Math.sin(r90);
+
+  let width = Math.sqrt(ux * ux + vx * vx) * 2;
+  let height = Math.sqrt(uy * uy + vy * vy) * 2;
+  let x = c.x - (width / 2);
+  let y = c.y - (height / 2);
+  return {width,height,x,y};
 }
 /**
  * @summary **circ**le
@@ -6365,12 +6602,12 @@ const circle = {
     const cir = document.getElementById(id);
     const rect = document.getElementById("canvas").getBoundingClientRect();
     const dot = document.getElementById("rcs");
-    const start = dot.dataset.m
-      .split("|")
-      .reduce((p, c, i, a) => ({ x: Number(a[0]), y: Number(a[1]) }));
-    const cirStart = dot.dataset.c
-      .split("|")
-      .reduce((p, c, i, a) => ({ x: Number(a[0]), y: Number(a[1]) }));
+    // const start = dot.dataset.m
+    //   .split("|")
+    //   .reduce((p, c, i, a) => ({ x: Number(a[0]), y: Number(a[1]) }));
+    // const cirStart = dot.dataset.c
+    //   .split("|")
+    //   .reduce((p, c, i, a) => ({ x: Number(a[0]), y: Number(a[1]) }));
     const m = { x: e.clientX - rect.left, y: e.clientY - rect.top };
     const clone = cir.getCTM().isIdentity ? cir.getCTM() : DOMMatrix.fromMatrix(cir.getCTM()).inverse();
     const {x, y} = DOMPoint.fromPoint(m).matrixTransform(clone);
@@ -6382,10 +6619,10 @@ const circle = {
     dot.setAttribute("cx", m.x);
     dot.setAttribute("cy", m.y);
   },
-  /**@param {MouseEvent} e */
-  cl: (e) => {
+  /**@param {MouseEvent} [e] @param {string} id */
+  cl: (e, id) => {
     /**@type {SVGCircleElement} */
-    const c = e.target;
+    const c = e ? e.target : document.getElementById(id);
     /**@type {HTMLUListElement} */
     const attr = document.querySelector("li.attributes .attr");
     while (attr.firstChild) attr.removeChild(attr.lastChild);
@@ -6399,10 +6636,12 @@ const circle = {
     circle.ssg(c.id);
     crct.onmousedown = (e) => {
       /**@type {SVGCircleElement} */
-      const c = e.target;
-      c.setAttribute("r", Number(c.r.baseVal.value) * 5);
+      const target = e.target;
+      target.setAttribute("r", c.r.baseVal.valueAsString);
+      // target.dataset.o = target.
+      target.style.opacity = '0';
       const canvas = document.getElementById("canvas").getBoundingClientRect();
-      c.dataset.m =
+      target.dataset.m =
         e.clientX - canvas.left + "|" + (e.clientY - canvas.top);
       c.dataset.c = c.cx.baseVal.value + "|" + c.cy.baseVal.value;
       rct.style.display = "none";
@@ -6416,6 +6655,7 @@ const circle = {
     };
     crct.onmouseup = (e) => {
       rct.style.display = "";
+      e.target.style.opacity = "";
       delete e.target.dataset.m;
       delete c.dataset.c;
       circle.ssg(c.id);
@@ -6424,6 +6664,7 @@ const circle = {
     };
     crct.onmouseleave = (e) => {
       rct.style.display = "";
+      e.target.style.opacity = "";
       delete e.target.dataset.m;
       delete c.dataset.c;
       circle.ssg(c.id);
@@ -6456,6 +6697,18 @@ const circle = {
       c.cy.baseVal.value,
       c.r.baseVal.value
     ];
+    // let ccc = Geometrize.Circle({x: cx, y: cy}, cr);
+    // const g = asGeomzMat2D(c.getCTM());
+    // console.log(c.getCTM());
+    // console.log(g);
+    // ccc = ccc.transform(g);
+    // let bb = ccc.getBoundingBox();
+    // bb = {
+    //   x: bb.xmin, y: bb.ymin,
+    //   width: Math.abs(bb.xmax - bb.xmin),
+    //   height: Math.abs(bb.ymax - bb.ymin),
+    // }
+    // return DOMRect.fromRect(bb);
     return crBB(
       DOMRect.fromRect({
         x: cx - cr,
@@ -6465,6 +6718,7 @@ const circle = {
       }),
       c.getCTM()
     );
+    // return cBB(document.getElementById(id));
   },
   /**@summary Show selection graphic @param {string} id */
   ssg: (id) => {
@@ -6476,7 +6730,7 @@ const circle = {
       c.r.baseVal.value
     ];
     const bb = circle.bb(id)
-    // console.log(bb);
+    // console.log(JSON.stringify(bb));
     const br = document.querySelector("g#selection-shapes > #rect-sel"); //boundingRect
     const cd = document.querySelector("g#selection-shapes > #rcs"); //centreDot
     const cdp = DOMPoint.fromPoint({ x: cx, y: cy }).matrixTransform(
@@ -6508,13 +6762,13 @@ const circle = {
     cd.setAttribute("cx", cdp.x);
     cd.setAttribute("cy", cdp.y);
 
-    const wk = new Worker("recalc-rad.js", {credentials: "same-origin"});
-    wk.postMessage(bb);
-    wk.onmessage = e => {
-      cd.setAttribute("r",  e.data);
-    }
+    // const wk = new Worker("recalc-rad.js", {credentials: "same-origin"});
+    // wk.postMessage(bb);
+    // wk.onmessage = e => {
+    //   cd.setAttribute("r",  e.data);
+    // }
 
-    cd.setAttribute("r",  6);
+    cd.setAttribute("r", Math.max(bb.width, bb.height) * 0.0125);
   },
   /**@summary **r**emove**u**ser**i**nterface */
   rui: () => {
@@ -6847,6 +7101,10 @@ const neutral = {
       primitives[document.getElementById(cxt.id[0]).tagName].rui();
     } else {
       let gl = document.querySelector("g#selection-shapes > #rect-sel");
+      gl.setAttribute("stroke", "red");
+      gl.setAttribute("fill", "none");
+      gl.setAttribute("stroke-width", "1");
+      gl.setAttribute("stroke-dasharray", "6");
       gl.setAttribute("x", -9999);
       gl.setAttribute("y", -9999);
       gl.setAttribute("width", 0);
@@ -6856,6 +7114,7 @@ const neutral = {
       gl.setAttribute("cx", -9999);
       gl.setAttribute("cy", -9999);
       gl.setAttribute("r", 0);
+      gl.setAttribute("stroke", "red");
       gl.removeAttribute("transform");
       gl.onmousedown = undefined;
       gl.onmousemove = undefined;
@@ -6927,6 +7186,7 @@ const neutral = {
       };
       /**@type {string[]}*/
       let ar = [];
+      cxt.id = [];
       for (let i = 0; i < shapes.length; i++) {
         /**@type {SVGGraphicsElement}*/
         const shape = shapes[i];
@@ -6936,6 +7196,8 @@ const neutral = {
           if (rect.maxY < bb.y + bb.height) rect.maxY = bb.y + bb.height;
           if (rect.minX > bb.x) rect.minX = bb.x;
           if (rect.minY > bb.y) rect.minY = bb.y;
+
+          cxt.id.push(shape.id);
 
           const attrList = Object.keys(
             primitives[document.getElementById(shape.id).tagName]
@@ -6954,19 +7216,107 @@ const neutral = {
         rct.setAttribute("width", 0);
         rct.setAttribute("height", 0);
         rct.removeAttribute("transform");
+      }  else if(cxt.id.length === 1) {
+        primitives[document.getElementById(cxt.id[0]).tagName].cl(undefined, cxt.id[0]);
       } else {
-        rct.setAttribute("x", rect.minX);
-        rct.setAttribute("y", rect.minY);
-        rct.setAttribute("width", rect.maxX - rect.minX);
-        rct.setAttribute("height", rect.maxY - rect.minY);
-      }
+        neutral.ssg(cxt.id);
 
-      // console.log(ar);
+        /**@type {HTMLElement} */
+        const dot = document.querySelector("#rcs");
+        dot.onmousedown = e => {
+          const t = e.target;
+          t.setAttribute("r", Math.max(rct.width.baseVal.value, rct.height.baseVal.value));
+          t.style.opacity = '0';
+          const canvas = document.getElementById("canvas").getBoundingClientRect();
+          t.dataset.m =
+            e.clientX - canvas.left + "|" + (e.clientY - canvas.top);
+          rct.style.display = "none";
+          e.preventDefault();
+          e.stopPropagation();
+        };
+        dot.onmousemove = e => {
+          if (e.target.dataset.m && e.target.dataset.m.length > 0) {
+            cxt.id.forEach(x => {
+              // const me = new MouseEvent("mousemove", {});
+              /**@type {SVGSVGElement} */
+              const canvas = document.getElementById("canvas");
+              const rect = canvas.getBoundingClientRect();
+              const shape = document.getElementById(x);
+              const object = primitives[shape.tagName];
+              const bb = object.bb(x);
+              let centre = {x:bb.x+(bb.width/2),y:bb.y+(bb.height/2)};
+              const client = {x:e.clientX - rect.x,y:e.clientY - rect.y};
+              centre = locVect([centre, client]);
+              centre = DOMPoint.fromPoint(client).matrixTransform(e.target.getCTM().translate(centre.x, centre.y))
+              const me = {clientX:centre.x,clientY:centre.y};
+              object.mv(me, x);
+            });
+          }
+        };
+        dot.onmouseup = e => {
+          rct.style.display = "";
+          e.target.style.opacity = "";
+          delete e.target.dataset.m;
+          neutral.ssg(cxt.id);
+          e.preventDefault();
+          e.stopPropagation();
+        };
+        dot.onmouseleave = e => {
+          rct.style.display = "";
+          e.target.style.opacity = "";
+          delete e.target.dataset.m;
+          neutral.ssg(cxt.id);
+        };
+      }
 
       cxt.pt = null;
       cxt.cl = null;
     }
   },
+  /**@param {string[]} ids */
+  bb: ids => {
+    const rect = {
+      maxX: -99999999,
+      maxY: -99999999,
+      minX: 99999999,
+      minY: 99999999,
+    };
+    ids.forEach(id => {
+      const bb = primitives[document.getElementById(id).tagName].bb(id);
+      if (rect.maxX < bb.x + bb.width) rect.maxX = bb.x + bb.width;
+      if (rect.maxY < bb.y + bb.height) rect.maxY = bb.y + bb.height;
+      if (rect.minX > bb.x) rect.minX = bb.x;
+      if (rect.minY > bb.y) rect.minY = bb.y;
+    });
+    return new DOMRect(rect.minX, rect.minY, Math.abs(rect.maxX - rect.minX), Math.abs(rect.maxY - rect.minY));
+  },
+  ssg: (ids) => {
+    const bb = neutral.bb(ids);
+    const br = document.getElementById("rect-sel");
+    const dot = document.getElementById("rcs");
+    br.setAttribute("stroke", "red");
+    br.setAttribute("fill", "none");
+    br.setAttribute("stroke-width", "1");
+    br.setAttribute("stroke-dasharray", "6");
+    br.setAttribute(
+      "x",bb.x
+    );
+    br.setAttribute(
+      "y",bb.y
+    );
+    br.setAttribute(
+      "width",bb.width
+    );
+    br.setAttribute(
+      "height",bb.height
+    );
+    dot.setAttribute("stroke", "none");
+    dot.setAttribute("fill", br.getAttribute("stroke"));
+    dot.style.opacity = '0.5';
+    dot.setAttribute("cx", bb.x + (bb.width/2));
+    dot.setAttribute("cy", bb.y + (bb.height/2));
+    dot.setAttribute("r", Math.max(bb.width, bb.height) * 0.0125);
+  }
 };
 
 const svg = {

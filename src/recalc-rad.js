@@ -2,8 +2,6 @@ self.onmessage = e => {
     const args = e.data;
     self.postMessage(getD(ld(frDR(args))) * 0.0125);
 }
-
-
 /**
  * @summary **w**rap**D**OM**P**oint.
  * @description Wraps the given `DOMPoint` with a `TransformablePoint` and returns the result.
@@ -22,35 +20,13 @@ function wDP(p) {
    */
   function frDR(r) {
     return {
-      nw: wDP(DOMPoint.fromPoint({x: r.left, y: r.top})),
-      ne: wDP(DOMPoint.fromPoint({x: r.left + r.width, y: r.top})),
-      se: wDP(DOMPoint.fromPoint({x: r.left + r.width, y: r.top + r.height})),
-      sw: wDP(DOMPoint.fromPoint({x: r.left, y: r.top + r.height})),
-      c: wDP(DOMPoint.fromPoint({x: r.left + (r.width / 2), y: r.top + (r.height / 2)})),
+      nw: wDP(DOMPoint.fromPoint({x: r.x, y: r.y})),
+      ne: wDP(DOMPoint.fromPoint({x: r.x + r.width, y: r.y})),
+      se: wDP(DOMPoint.fromPoint({x: r.x + r.width, y: r.y + r.height})),
+      sw: wDP(DOMPoint.fromPoint({x: r.x, y: r.y + r.height})),
+      c: wDP(DOMPoint.fromPoint({x: r.x + (r.width / 2), y: r.y + (r.height / 2)})),
     };
   }
-  /**
-   * An interface representing a shape that can apply a given `transform` to itself without changing (mutating)
-   * it's original values.
-   * @callback Transformable
-   * @param {DOMMatrix} m the tranform to be applied
-   * @returns {DOMPoint} the coordinates of `this` that has been transformed using the given argument.
-   */
-  /**
-   * @typedef {Object} TransformablePoint A point that can transform itself safely without mutating
-   * it's values.
-   * @property {Transformable} tr Returns a `DOMPoint` that has been transformed with a specified transformation.
-   */
-  /**
-   * **Rect**angular**Struct**ure. An object that contains only the points of the vertices of a rectangle (such as a bounding box)
-   * and the centre point. Each of these points can be transformed separately wiout mutating the whole rectangle.
-   * @typedef {Object} RectStruct
-   * @property {DOMPoint & TransformablePoint} nw the north-west (top-left) point of the rectangle.
-   * @property {DOMPoint & TransformablePoint} ne the north-east (top-right) point of the rectangle.
-   * @property {DOMPoint & TransformablePoint} se the south-east (bottom-right) point of the rectangle.
-   * @property {DOMPoint & TransformablePoint} sw the south-west (bottom-left) point of the rectangle.
-   * @property {DOMPoint & TransformablePoint} c the central point of the rectangle.
-   */
   /**
    * @summary **norm**alise**L**i**n**e
    * @description Re-arranges the endpoints of a given line so that the leftmost (or top-most) point (in a 2D cartesian plane)
